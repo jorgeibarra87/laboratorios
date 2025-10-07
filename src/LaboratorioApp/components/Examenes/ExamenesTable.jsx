@@ -99,7 +99,7 @@ const ExamenesTable = () => {
         setCheckedExams({});
     };
 
-    // Componente de paginación corregido
+    // Componente de paginación
     const Pagination = ({ categoria, paginationData }) => {
         const { totalPages, currentPage: page, totalItems } = paginationData;
 
@@ -111,7 +111,6 @@ const ExamenesTable = () => {
                     Mostrando {((page - 1) * itemsPerPage) + 1} - {Math.min(page * itemsPerPage, totalItems)} de {totalItems} registros
                 </div>
                 <div className="flex items-center space-x-2">
-                    {/* Primera página usando ChevronsLeft (doble chevron izquierda) */}
                     <button
                         onClick={() => changePage(categoria, 1)}
                         disabled={page === 1}
@@ -121,7 +120,6 @@ const ExamenesTable = () => {
                         <ChevronsLeft className="w-4 h-4" />
                     </button>
 
-                    {/* Página anterior */}
                     <button
                         onClick={() => changePage(categoria, page - 1)}
                         disabled={page === 1}
@@ -131,7 +129,6 @@ const ExamenesTable = () => {
                         <ChevronLeft className="w-4 h-4" />
                     </button>
 
-                    {/* Números de página */}
                     <div className="flex space-x-1">
                         {[...Array(totalPages)].map((_, index) => {
                             const pageNum = index + 1;
@@ -150,7 +147,6 @@ const ExamenesTable = () => {
                         })}
                     </div>
 
-                    {/* Página siguiente */}
                     <button
                         onClick={() => changePage(categoria, page + 1)}
                         disabled={page === totalPages}
@@ -160,7 +156,6 @@ const ExamenesTable = () => {
                         <ChevronRight className="w-4 h-4" />
                     </button>
 
-                    {/* Última página usando ChevronsRight (doble chevron derecha) */}
                     <button
                         onClick={() => changePage(categoria, totalPages)}
                         disabled={page === totalPages}
@@ -202,21 +197,23 @@ const ExamenesTable = () => {
                     </div>
                 ) : (
                     <div className="bg-white shadow-lg rounded-b-lg overflow-hidden">
-                        {/* Headers */}
+                        {/* Headers - CORREGIDO A 16 COLUMNAS */}
                         <div className="bg-gray-800 text-white text-sm">
-                            <div className="grid grid-cols-12 gap-2 px-4 py-3 font-semibold">
+                            <div className="grid grid-cols-16 gap-1 px-4 py-3 font-semibold">
                                 <div className="col-span-1">Historia</div>
-                                <div className="col-span-2">Paciente</div>
+                                <div className="col-span-3">Paciente</div>
                                 <div className="col-span-1">Edad</div>
+                                <div className="col-span-1">Ingreso</div>
+                                <div className="col-span-1">Folio</div>
                                 <div className="col-span-1">Cama</div>
                                 <div className="col-span-2">Exámenes</div>
                                 <div className="col-span-2">Fecha Solicitud</div>
-                                <div className="col-span-2">Área Solicitante</div>
+                                <div className="col-span-3">Área Solicitante</div>
                                 <div className="col-span-1">Acciones</div>
                             </div>
                         </div>
 
-                        {/* Contenido */}
+                        {/* Contenido - CORREGIDO A 16 COLUMNAS */}
                         <div className="divide-y divide-gray-200">
                             {paginationData.items.map((solicitud, index) => {
                                 const pacienteKey = `${categoria}-${index}`;
@@ -225,39 +222,45 @@ const ExamenesTable = () => {
 
                                 return (
                                     <div key={solicitud.id}>
-                                        {/* Fila del paciente */}
+                                        {/* Fila del paciente - CORREGIDO A 16 COLUMNAS */}
                                         <div
-                                            className="grid grid-cols-12 gap-2 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 border-blue-500 bg-blue-50"
+                                            className="grid grid-cols-16 gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 border-blue-500 bg-blue-50"
                                             onClick={() => togglePatient(categoria, index)}
                                         >
-                                            <div className="col-span-1 font-medium">{solicitud.historia}</div>
-                                            <div className="col-span-2 font-semibold text-blue-800 flex items-center">
+                                            <div className="col-span-1 font-medium text-sm">{solicitud.historia}</div>
+                                            <div className="col-span-3 font-semibold text-blue-800 flex items-center">
                                                 {isExpanded ?
-                                                    <ChevronDown className="w-4 h-4 mr-2" /> :
-                                                    <ChevronRight className="w-4 h-4 mr-2" />
+                                                    <ChevronDown className="w-4 h-4 mr-1 flex-shrink-0" /> :
+                                                    <ChevronRight className="w-4 h-4 mr-1 flex-shrink-0" />
                                                 }
-                                                <span className="truncate">{solicitud.paciente}</span>
+                                                <span className="truncate text-sm">{solicitud.paciente}</span>
                                             </div>
                                             <div className="col-span-1 text-sm font-medium text-gray-700">
                                                 {solicitud.edad} años
                                             </div>
+                                            <div className="col-span-1 text-sm font-medium text-blue-600">
+                                                {solicitud.ingreso}
+                                            </div>
+                                            <div className="col-span-1 text-sm font-medium text-purple-600">
+                                                {solicitud.folio}
+                                            </div>
                                             <div className="col-span-1 text-sm">
                                                 <div className="flex items-center">
-                                                    <MapPin className="w-3 h-3 mr-1 text-gray-500" />
-                                                    {solicitud.cama}
+                                                    <MapPin className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0" />
+                                                    <span className="truncate">{solicitud.cama}</span>
                                                 </div>
                                             </div>
                                             <div className="col-span-2 text-sm text-gray-600">
                                                 <div className="flex items-center">
-                                                    <TestTube className="w-4 h-4 mr-1 text-blue-500" />
-                                                    {solicitud.examenes.length} examen{solicitud.examenes.length !== 1 ? 'es' : ''}
+                                                    <TestTube className="w-4 h-4 mr-1 text-blue-500 flex-shrink-0" />
+                                                    <span>{solicitud.examenes.length} examen{solicitud.examenes.length !== 1 ? 'es' : ''}</span>
                                                 </div>
                                             </div>
                                             <div className="col-span-2 text-sm">{solicitud.fechaSolicitud}</div>
-                                            <div className="col-span-2 text-xs text-gray-600 truncate">
-                                                {solicitud.areaSolicitante}
+                                            <div className="col-span-3 text-xs text-gray-600">
+                                                <span className="truncate block">{solicitud.areaSolicitante}</span>
                                             </div>
-                                            <div className="col-span-1 flex space-x-1">
+                                            <div className="col-span-1 flex space-x-1 justify-center">
                                                 <button
                                                     className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'}`}
                                                     onClick={(e) => {
@@ -268,9 +271,9 @@ const ExamenesTable = () => {
                                                 >
                                                     <Check className="w-4 h-4" />
                                                 </button>
-                                                <button className="text-blue-600 hover:text-blue-800 p-1" title="Ver detalles">
+                                                {/* <button className="text-blue-600 hover:text-blue-800 p-1" title="Ver detalles">
                                                     <Eye className="w-4 h-4" />
-                                                </button>
+                                                </button> */}
                                             </div>
                                         </div>
 
@@ -288,7 +291,7 @@ const ExamenesTable = () => {
                                                             return (
                                                                 <div key={examIndex} className={`flex items-center justify-between rounded p-2 shadow-sm ${isChecked ? 'bg-green-50 border border-green-200' : 'bg-white'}`}>
                                                                     <div className="flex items-center">
-                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold mr-3 ${isChecked ? 'bg-green-500 text-white' : 'bg-blue-100 text-blue-800'}`}>
+                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold mr-3 flex-shrink-0 ${isChecked ? 'bg-green-500 text-white' : 'bg-blue-100 text-blue-800'}`}>
                                                                             {examIndex + 1}
                                                                         </span>
                                                                         <span className={`text-sm ${isChecked ? 'text-gray-600 line-through' : 'text-gray-800'}`}>
@@ -384,7 +387,7 @@ const ExamenesTable = () => {
                     SOLICITUDES DE LABORATORIO - {filtroActual.toUpperCase()}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
-                    Sistema de gestión hospitalaria con paginación
+                    Sistema de gestión Laboratorio Hospital San José Popayán
                 </p>
             </div>
 
