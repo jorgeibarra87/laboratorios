@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
+import { API_CONFIG } from '../../config/api';
 import {
     ChevronDown,
     ChevronRight,
     Check,
-    Eye,
     RefreshCw,
     MapPin,
     TestTube,
     Database,
     ChevronLeft,
     ChevronsLeft,
-    ChevronsRight
+    ChevronsRight,
+    CheckCircle2
 } from 'lucide-react';
 import { useSolicitudes } from '../../hook/useSolicitudes';
 
@@ -18,6 +19,10 @@ const ExamenesTable = () => {
     const [expandedPatients, setExpandedPatients] = useState({});
     const [checkedExams, setCheckedExams] = useState({});
     const [filtroActual, setFiltroActual] = useState('actuales');
+    const USAR_DATOS_PRUEBA = API_CONFIG.USE_TEST_DATA;
+
+    // Debug para verificar
+    console.log('🧪 Modo de datos:', USAR_DATOS_PRUEBA ? 'PRUEBA' : 'PRODUCCIÓN');
 
     // Usar el custom hook
     const {
@@ -28,8 +33,10 @@ const ExamenesTable = () => {
         paginateData,
         changePage,
         currentPage,
-        itemsPerPage
-    } = useSolicitudes(filtroActual);
+        itemsPerPage,
+        marcarExamenIndividual,
+        marcarTodosLosExamenes
+    } = useSolicitudes(filtroActual, USAR_DATOS_PRUEBA);
 
     const togglePatient = (categoria, pacienteId) => {
         const key = `${categoria}-${pacienteId}`;
@@ -41,6 +48,9 @@ const ExamenesTable = () => {
 
     // Función para marcar/desmarcar todos los exámenes de un paciente
     const toggleAllExams = (categoria, pacienteIndex, examenes) => {
+        // No permitir cambios en "tomadas"
+        if (filtroActual === 'tomadas') return;
+
         const baseKey = `${categoria}-${pacienteIndex}`;
         const allExamKeys = examenes.map((_, examIndex) => `${baseKey}-exam-${examIndex}`);
 
@@ -61,6 +71,9 @@ const ExamenesTable = () => {
 
     // Función para marcar/desmarcar un examen individual
     const toggleSingleExam = (categoria, pacienteIndex, examIndex) => {
+        // No permitir cambios en "tomadas"
+        if (filtroActual === 'tomadas') return;
+
         const examKey = `${categoria}-${pacienteIndex}-exam-${examIndex}`;
 
         setCheckedExams(prev => ({
@@ -71,6 +84,9 @@ const ExamenesTable = () => {
 
     // Verificar si todos los exámenes están marcados
     const areAllExamsChecked = (categoria, pacienteIndex, examenes) => {
+        // En "tomadas", todos los exámenes están completados
+        if (filtroActual === 'tomadas') return true;
+
         const baseKey = `${categoria}-${pacienteIndex}`;
         const allExamKeys = examenes.map((_, examIndex) => `${baseKey}-exam-${examIndex}`);
         return allExamKeys.every(key => checkedExams[key]);
@@ -78,6 +94,9 @@ const ExamenesTable = () => {
 
     // Verificar si un examen individual está marcado
     const isExamChecked = (categoria, pacienteIndex, examIndex) => {
+        // En "tomadas", todos los exámenes están completados
+        if (filtroActual === 'tomadas') return true;
+
         const examKey = `${categoria}-${pacienteIndex}-exam-${examIndex}`;
         return checkedExams[examKey] || false;
     };
@@ -134,7 +153,7 @@ const ExamenesTable = () => {
                             const pageNum = index + 1;
                             return (
                                 <button
-                                    key={pageNum}
+                                    key={`${categoria}-page-${pageNum}`} // ✅ KEY CORREGIDA
                                     onClick={() => changePage(categoria, pageNum)}
                                     className={`px-3 py-1 text-sm rounded ${page === pageNum
                                         ? 'bg-blue-600 text-white'
@@ -183,11 +202,15 @@ const ExamenesTable = () => {
 
     const renderTablaCategoria = (categoria, solicitudes, titulo, colorHeader) => {
         const paginationData = paginateData(solicitudes, categoria);
+        const isTomadas = filtroActual === 'tomadas';
 
         return (
             <div className="mb-8">
-                <div className={`${colorHeader} text-white px-4 py-2 rounded-t-lg font-bold text-lg`}>
+                <div className={`${colorHeader} text-white px-4 py-2 rounded-t-lg font-bold text-lg flex items-center`}>
                     {titulo}
+                    {isTomadas && (
+                        <CheckCircle2 className="w-5 h-5 ml-2" />
+                    )}
                 </div>
 
                 {paginationData.items.length === 0 ? (
@@ -197,9 +220,9 @@ const ExamenesTable = () => {
                     </div>
                 ) : (
                     <div className="bg-white shadow-lg rounded-b-lg overflow-hidden">
-                        {/* Headers - CORREGIDO A 16 COLUMNAS */}
+                        {/* Headers - Ajustar columnas según si es "tomadas" */}
                         <div className="bg-gray-800 text-white text-sm">
-                            <div className="grid grid-cols-16 gap-1 px-4 py-3 font-semibold">
+                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold`}>
                                 <div className="col-span-1">Historia</div>
                                 <div className="col-span-3">Paciente</div>
                                 <div className="col-span-1">Edad</div>
@@ -208,12 +231,12 @@ const ExamenesTable = () => {
                                 <div className="col-span-1">Cama</div>
                                 <div className="col-span-2">Exámenes</div>
                                 <div className="col-span-2">Fecha Solicitud</div>
-                                <div className="col-span-3">Área Solicitante</div>
-                                <div className="col-span-1">Acciones</div>
+                                <div className={`${isTomadas ? 'col-span-3' : 'col-span-3'}`}>Área Solicitante</div>
+                                {!isTomadas && <div className="col-span-1">Acciones</div>}
                             </div>
                         </div>
 
-                        {/* Contenido - CORREGIDO A 16 COLUMNAS */}
+                        {/* Contenido */}
                         <div className="divide-y divide-gray-200">
                             {paginationData.items.map((solicitud, index) => {
                                 const pacienteKey = `${categoria}-${index}`;
@@ -221,10 +244,10 @@ const ExamenesTable = () => {
                                 const allExamsChecked = areAllExamsChecked(categoria, index, solicitud.examenes);
 
                                 return (
-                                    <div key={solicitud.id}>
-                                        {/* Fila del paciente - CORREGIDO A 16 COLUMNAS */}
+                                    <div key={`${categoria}-${solicitud.id}-${index}`}>
+                                        {/* Fila del paciente */}
                                         <div
-                                            className="grid grid-cols-16 gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 border-blue-500 bg-blue-50"
+                                            className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${isTomadas ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-blue-50'}`}
                                             onClick={() => togglePatient(categoria, index)}
                                         >
                                             <div className="col-span-1 font-medium text-sm">{solicitud.historia}</div>
@@ -234,6 +257,9 @@ const ExamenesTable = () => {
                                                     <ChevronRight className="w-4 h-4 mr-1 flex-shrink-0" />
                                                 }
                                                 <span className="truncate text-sm">{solicitud.paciente}</span>
+                                                {isTomadas && (
+                                                    <CheckCircle2 className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" title="Exámenes completados" />
+                                                )}
                                             </div>
                                             <div className="col-span-1 text-sm font-medium text-gray-700">
                                                 {solicitud.edad} años
@@ -254,62 +280,87 @@ const ExamenesTable = () => {
                                                 <div className="flex items-center">
                                                     <TestTube className="w-4 h-4 mr-1 text-blue-500 flex-shrink-0" />
                                                     <span>{solicitud.examenes.length} examen{solicitud.examenes.length !== 1 ? 'es' : ''}</span>
+                                                    {isTomadas && (
+                                                        <span className="ml-1 text-green-600 font-semibold">✓</span>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="col-span-2 text-sm">{solicitud.fechaSolicitud}</div>
                                             <div className="col-span-3 text-xs text-gray-600">
                                                 <span className="truncate block">{solicitud.areaSolicitante}</span>
                                             </div>
-                                            <div className="col-span-1 flex space-x-1 justify-center">
-                                                <button
-                                                    className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleAllExams(categoria, index, solicitud.examenes);
-                                                    }}
-                                                    title={allExamsChecked ? "Desmarcar todos los exámenes" : "Marcar todos los exámenes"}
-                                                >
-                                                    <Check className="w-4 h-4" />
-                                                </button>
-                                                {/* <button className="text-blue-600 hover:text-blue-800 p-1" title="Ver detalles">
-                                                    <Eye className="w-4 h-4" />
-                                                </button> */}
-                                            </div>
+
+                                            {/* Columna de acciones solo si NO es "tomadas" */}
+                                            {!isTomadas && (
+                                                <div className="col-span-1 flex space-x-1 justify-center">
+                                                    <button
+                                                        className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            toggleAllExams(categoria, index, solicitud.examenes);
+                                                        }}
+                                                        title={allExamsChecked ? "Desmarcar todos los exámenes" : "Marcar todos los exámenes"}
+                                                    >
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Lista de exámenes expandible */}
                                         {isExpanded && (
                                             <div className="bg-gray-50">
                                                 <div className="px-4 py-2 border-l-4 border-gray-300 ml-4">
-                                                    <div className="text-sm font-semibold text-gray-700 mb-2">
+                                                    <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
                                                         Exámenes de laboratorio solicitados ({solicitud.examenes.length}):
+                                                        {isTomadas && (
+                                                            <span className="ml-2 text-green-600 text-xs bg-green-100 px-2 py-1 rounded">
+                                                                COMPLETADOS
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="space-y-1">
                                                         {solicitud.examenes.map((examen, examIndex) => {
                                                             const isChecked = isExamChecked(categoria, index, examIndex);
 
                                                             return (
-                                                                <div key={examIndex} className={`flex items-center justify-between rounded p-2 shadow-sm ${isChecked ? 'bg-green-50 border border-green-200' : 'bg-white'}`}>
+                                                                <div
+                                                                    key={`${categoria}-${solicitud.id}-${index}-exam-${examIndex}`} // ✅ KEY ÚNICA CORREGIDA
+                                                                    className={`flex items-center justify-between rounded p-2 shadow-sm ${isChecked ? 'bg-green-50 border border-green-200' : 'bg-white'}`}
+                                                                >
                                                                     <div className="flex items-center">
                                                                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold mr-3 flex-shrink-0 ${isChecked ? 'bg-green-500 text-white' : 'bg-blue-100 text-blue-800'}`}>
                                                                             {examIndex + 1}
                                                                         </span>
-                                                                        <span className={`text-sm ${isChecked ? 'text-gray-600 line-through' : 'text-gray-800'}`}>
+                                                                        <span className={`text-sm ${isChecked ? 'text-gray-600' : 'text-gray-800'}`}>
                                                                             {examen}
                                                                         </span>
                                                                         {isChecked && (
-                                                                            <span className="ml-2 text-xs text-green-600 font-semibold">✓ Completado</span>
+                                                                            <span className="ml-2 text-xs text-green-600 font-semibold">
+                                                                                {isTomadas ? '✓ Realizado' : '✓ Completado'}
+                                                                            </span>
                                                                         )}
                                                                     </div>
-                                                                    <div className="flex space-x-1">
-                                                                        <button
-                                                                            className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'}`}
-                                                                            onClick={() => toggleSingleExam(categoria, index, examIndex)}
-                                                                            title={isChecked ? "Marcar como pendiente" : "Marcar como completado"}
-                                                                        >
-                                                                            <Check className="w-4 h-4" />
-                                                                        </button>
-                                                                    </div>
+
+                                                                    {/* Botones de acción solo si NO es "tomadas" */}
+                                                                    {!isTomadas && (
+                                                                        <div className="flex space-x-1">
+                                                                            <button
+                                                                                className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'}`}
+                                                                                onClick={() => toggleSingleExam(categoria, index, examIndex)}
+                                                                                title={isChecked ? "Marcar como pendiente" : "Marcar como completado"}
+                                                                            >
+                                                                                <Check className="w-4 h-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Para "tomadas", mostrar solo indicador visual */}
+                                                                    {isTomadas && (
+                                                                        <div className="flex space-x-1">
+                                                                            <CheckCircle2 className="w-5 h-5 text-green-600" title="Examen realizado" />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })}
@@ -347,17 +398,18 @@ const ExamenesTable = () => {
                     >
                         Actuales
                     </button>
-                    <button
+                    {/* <button
                         onClick={() => cambiarFiltro('pendientes')}
                         className={`px-6 py-2 text-sm font-medium ${filtroActual === 'pendientes' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Pendientes
-                    </button>
+                    </button> */}
                     <button
                         onClick={() => cambiarFiltro('tomadas')}
-                        className={`px-6 py-2 rounded-r text-sm font-medium ${filtroActual === 'tomadas' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                        className={`px-6 py-2 rounded-r text-sm font-medium flex items-center ${filtroActual === 'tomadas' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                     >
                         Tomadas
+                        {filtroActual === 'tomadas' && <CheckCircle2 className="w-4 h-4 ml-1" />}
                     </button>
                 </div>
 
@@ -385,9 +437,11 @@ const ExamenesTable = () => {
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center justify-center">
                     <span className="text-green-600 mr-2">🧪</span>
                     SOLICITUDES DE LABORATORIO - {filtroActual.toUpperCase()}
+                    {filtroActual === 'tomadas' && <CheckCircle2 className="w-6 h-6 ml-2 text-green-600" />}
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
                     Sistema de gestión Laboratorio Hospital San José Popayán
+                    {filtroActual === 'tomadas' && ' - Exámenes completados'}
                 </p>
             </div>
 

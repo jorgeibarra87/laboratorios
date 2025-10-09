@@ -20,4 +20,17 @@
   --color-primary-red2-husj: #d90004;
   --color-primary-gray1-husj: #292b2c;
   --color-primary-gray2-husj: #f7f7f7;
+
+  /* Grids personalizados */
+  --grid-template-columns-15: repeat(15, minmax(0, 1fr));
+  --grid-template-columns-16: repeat(16, minmax(0, 1fr));
+}
+
+/* Clases personalizadas para grids */
+.grid-cols-15 {
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+}
+
+.grid-cols-16 {
+  grid-template-columns: repeat(16, minmax(0, 1fr));
 }

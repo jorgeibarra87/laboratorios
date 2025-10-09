@@ -1,16 +1,19 @@
 // solicitudesService.jsx
-const API_BASE_URL = 'http://localhost:8080/api'; // Ajustar según backend
+import { API_CONFIG } from '../config/api';
+/* const API_DINAMICA_URL = 'https://api-dinamica-hospital.com/api';
+const API_LOCAL_URL = 'http://localhost:8084'; */
 
 class SolicitudesService {
 
-    async makeRequest(endpoint, options = {}) {
-        const url = `${API_BASE_URL}${endpoint}`;
+    // Métodos para la API DINAMICA (consultas)
+    async makeDinamicaRequest(endpoint, options = {}) {
+        const url = `${API_CONFIG.DINAMICA_API.BASE_URL}${endpoint}`;
 
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
-                // Agregar headers de autenticación si es necesario
-                // 'Authorization': `Bearer ${localStorage.getItem('token')}`
+                // Agregar headers de autenticación para API dinamica si es necesario
+                //'Authorization': `Bearer ${localStorage.getItem('external_token')}`,
             },
             ...options
         };
@@ -24,41 +27,84 @@ class SolicitudesService {
 
             return await response.json();
         } catch (error) {
-            console.error('Error en la petición:', error);
+            console.error('Error en petición a API dinamica:', error);
             throw error;
         }
     }
 
-    // Obtener todas las solicitudes de laboratorio
+    // ===== CONSULTAS A API DINAMICA =====
+
+    // Obtener todas las solicitudes de laboratorio desde API dinamica
     async getSolicitudesLaboratorio() {
-        return await this.makeRequest('/solicitudes-laboratorio');
+        return await this.makeDinamicaRequest('/solicitudes-laboratorio');
     }
 
-    // Obtener solicitudes filtradas por estado
+    // Obtener solicitudes filtradas por estado desde API dinamica
     async getSolicitudesByEstado(estado) {
-        // El estado podría ser: 0=Pendiente, 1=En proceso, 2=Completado, etc.
-        return await this.makeRequest(`/solicitudes-laboratorio?estado=${estado}`);
+        return await this.makeDinamicaRequest(`/solicitudes-laboratorio?estado=${estado}`);
     }
 
-    // Obtener solicitudes por prioridad
+    // Obtener solicitudes por prioridad desde API dinamica
     async getSolicitudesByPrioridad(prioridad) {
-        // 0=Urgente, 1=Rutinario, 2=Electiva, 3=Prioritaria, 4=Muy Urgente, 5=Control, 6=Electivo
-        return await this.makeRequest(`/solicitudes-laboratorio?prioridad=${prioridad}`);
+        return await this.makeDinamicaRequest(`/solicitudes-laboratorio?prioridad=${prioridad}`);
     }
 
-    // Obtener solicitudes por paciente
+    // Obtener solicitudes por paciente desde API dinamica
     async getSolicitudesByPaciente(idePaciente) {
-        return await this.makeRequest(`/solicitudes-laboratorio/paciente/${idePaciente}`);
+        return await this.makeDinamicaRequest(`/solicitudes-laboratorio/paciente/${idePaciente}`);
     }
 
-    // Obtener solicitudes por área solicitante
-    async getSolicitudesByArea(codigoArea) {
-        return await this.makeRequest(`/solicitudes-laboratorio?area=${codigoArea}`);
+    // ===== MÉTODOS PARA BACKEND LOCAL (exámenes tomados) =====
+
+    async makeLocalRequest(endpoint, options = {}) {
+        const url = `${API_CONFIG.LOCAL_API.BASE_URL}${endpoint}`;
+        console.log('🏠 Petición a backend local:', url);
+
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            ...options
+        };
+
+        try {
+            const response = await fetch(url, defaultOptions);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error en petición a backend local:', error);
+            throw error;
+        }
     }
 
-    // Obtener detalles de exámenes de una solicitud específica
-    async getExamenesSolicitud(solicitudId) {
-        return await this.makeRequest(`/solicitudes-laboratorio/${solicitudId}/examenes`);
+    // Obtener exámenes tomados desde backend local
+    async getExamenesTomados() {
+        return await this.makeLocalRequest('/examenes-tomados');
+    }
+
+    // Crear examen tomado en backend local
+    async crearExamenTomado(examenData) {
+        return await this.makeLocalRequest('/examenes-tomados', {
+            method: 'POST',
+            body: JSON.stringify(examenData)
+        });
+    }
+
+    // Crear múltiples exámenes tomados en backend local
+    async crearMultiplesExamenes(examenesData) {
+        return await this.makeLocalRequest('/examenes-tomados/bulk', {
+            method: 'POST',
+            body: JSON.stringify(examenesData)
+        });
+    }
+
+    // Obtener exámenes tomados por historia desde backend local
+    async getExamenesPorHistoria(historia) {
+        return await this.makeLocalRequest(`/examenes-tomados/historia/${historia}`);
     }
 }
 

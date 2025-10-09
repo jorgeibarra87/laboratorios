@@ -1,28 +1,37 @@
+import { useState } from 'react';
 import Header from './LaboratorioApp/ui/Header';
 import Sidebar from './LaboratorioApp/ui/Sidebar';
 import { Routes, Route } from "react-router-dom";
 import ExamenesTable from './LaboratorioApp/components/Examenes/ExamenesTable';
 
-const App = () => (
-  <div className="flex h-screen bg-gray-100">
-    {/* Sidebar */}
-    <Sidebar />
+const App = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    {/* Main Content */}
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
-      <Header />
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
-      {/* Content Area */}
-      <main className="flex-1 overflow-y-auto">
-        <Routes>
-          <Route path="/" element={<ExamenesTable />} />
-          <Route path="/examenes" element={<ExamenesTable />} />
-          <Route path="/solicitudes" element={<ExamenesTable />} />
-        </Routes>
-      </main>
+  return (
+    <div className="flex h-screen bg-gray-100">
+      {/* Barra lateral condicional */}
+      {isSidebarOpen && <Sidebar />}
+
+      {/* menu superior */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header con función toggle */}
+        <Header onToggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+
+        {/* Contenido */}
+        <main className="flex-1 overflow-y-auto">
+          <Routes>
+            <Route path="/" element={<ExamenesTable />} />
+            <Route path="/examenes" element={<ExamenesTable />} />
+            <Route path="/solicitudes" element={<ExamenesTable />} />
+          </Routes>
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default App;
