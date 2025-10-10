@@ -33,7 +33,7 @@ const InputFiltro = ({ campo, placeholder, valor, onChange, ancho = "w-full" }) 
             onFocus={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            // ✅ ESTILOS MEJORADOS PARA MEJOR VISIBILIDAD
+            // ESTILOS
             className="w-full px-2 py-1.5 text-sm font-medium text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-gray-400 transition-all duration-200 shadow-sm"
         />
         {valor && (
@@ -88,7 +88,7 @@ const ExamenesTable = () => {
         itemsPerPage,
         marcarExamenIndividual,
         marcarTodosLosExamenes
-    } = useSolicitudes(filtroActual, USAR_DATOS_PRUEBA);
+    } = useSolicitudes(filtroActual, USAR_DATOS_PRUEBA, 300000); // Polling cada 5 minutos
 
     const togglePatient = (categoria, pacienteId) => {
         const key = `${categoria}-${pacienteId}`;
@@ -232,7 +232,7 @@ const ExamenesTable = () => {
         }
     };
 
-    // ✅ FUNCIÓN para ejecutar la acción confirmada
+    // FUNCIÓN para ejecutar la acción confirmada
     const handleConfirmAction = async () => {
         if (!confirmAction) return;
 
@@ -299,7 +299,7 @@ const ExamenesTable = () => {
         }
     };
 
-    // ✅ FUNCIÓN para cancelar la acción
+    // FUNCIÓN para cancelar la acción
     const handleCancelAction = () => {
         setShowConfirm(false);
         setConfirmAction(null);
@@ -496,15 +496,15 @@ const ExamenesTable = () => {
                                     <MapPin className="w-4 h-4 mr-1" />
                                     Cama
                                 </div>
-                                <div className="col-span-2 flex items-center justify-center">
+                                <div className="col-span-2 flex items-center ">
                                     <TestTube className="w-4 h-4 mr-1" />
                                     Exámenes
                                 </div>
-                                <div className="col-span-2 flex items-center justify-center">
+                                <div className="col-span-2 flex items-center">
                                     <span className="w-4 h-4 mr-1">📅</span>
                                     Fecha Solicitud
                                 </div>
-                                <div className="col-span-3 flex items-center justify-center">
+                                <div className="col-span-3 flex items-center">
                                     <span className="w-4 h-4 mr-1">🏢</span>
                                     Área Solicitante
                                 </div>
@@ -551,11 +551,11 @@ const ExamenesTable = () => {
                                 <div className="col-span-1 flex items-center justify-center">
                                     <span className="text-xs text-gray-300">-</span>
                                 </div>
-                                {/* ✅ CORREGIR: 2 columnas para exámenes */}
+                                {/* 2 columnas para exámenes */}
                                 <div className="col-span-2 flex items-center justify-center">
                                     <span className="text-xs text-gray-300">-</span>
                                 </div>
-                                {/* ✅ CORREGIR: 2 columnas para fecha */}
+                                {/* 2 columnas para fecha */}
                                 <div className="col-span-2 flex items-center justify-center">
                                     <span className="text-xs text-gray-300">-</span>
                                 </div>
@@ -647,7 +647,7 @@ const ExamenesTable = () => {
                                                         className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            toggleAllExams(categoria, index, solicitud.examenes, solicitud); // ✅ PASAR SOLICITUD
+                                                            toggleAllExams(categoria, index, solicitud.examenes, solicitud); // PASAR SOLICITUD
                                                         }}
                                                         disabled={isProcessing}
                                                         title={allExamsChecked ? "Desmarcar todos los exámenes" : "Marcar todos los exámenes como tomados"}

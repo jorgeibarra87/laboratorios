@@ -1,7 +1,5 @@
 // solicitudesService.jsx
 import { API_CONFIG } from '../config/api';
-/* const API_DINAMICA_URL = 'https://api-dinamica-hospital.com/api';
-const API_LOCAL_URL = 'http://localhost:8084'; */
 
 class SolicitudesService {
 

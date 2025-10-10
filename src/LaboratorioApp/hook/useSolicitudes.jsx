@@ -1,8 +1,8 @@
-// hook/useSolicitudes.jsx - VERSIÓN CORREGIDA
-import { useState, useEffect } from 'react';
+// hook/useSolicitudes.jsx
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ExamenesTomadosService from '../Services/ExamenesTomadosService';
 
-export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => {
+export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pollingInterval = null) => {
     const [solicitudesData, setSolicitudesData] = useState({
         urgentes: [],
         prioritario: [],
@@ -10,6 +10,10 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    //estado para el polling
+    const [isPollingActive, setIsPollingActive] = useState(false);
+    const pollingRef = useRef(null);
+
 
     // Paginación
     const [currentPage, setCurrentPage] = useState({
@@ -19,7 +23,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
     });
     const itemsPerPage = 5;
 
-    // ✅ DATOS DE PRUEBA
+    // DATOS DE PRUEBA
     const datosPrueba = [
         // Urgentes
         { IdePaciente: "25268415", NomPaciente: "OLIVA PUNGO", Edad: 45, Ingreso: "5805058", Folio: "2299", Areasolicitante: "LAB001 - LABORATORIO CLÍNICO", Cama: "320A", NomCama: "MEDICO QUIRURGICAS 320A", Prioridad: "Urgente", CodServicio: "879111", NomServicio: "TOMOGRAFIA COMPUTADA DE CRANEO SIN CONTRASTE", Observaciones: "Paciente con sospecha de ACV" },
@@ -114,7 +118,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
 
             let dataFiltrada = [];
 
-            // ✅ SIEMPRE obtener exámenes tomados para filtrar
+            // SIEMPRE obtener exámenes tomados para filtrar
             let examenesTomadosActuales = [];
             try {
                 examenesTomadosActuales = await ExamenesTomadosService.getExamenesTomados();
@@ -132,7 +136,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
                 console.log('🧪 Usando datos de prueba para actuales');
                 console.log('🔍 Filtrando exámenes ya tomados...');
 
-                // ✅ APLICAR FILTRO: quitar exámenes que ya están tomados
+                // APLICAR FILTRO: quitar exámenes que ya están tomados
                 const datosSinTomados = filtrarExamenesNoTomados(datosPrueba, examenesTomadosActuales);
                 dataFiltrada = [...datosSinTomados];
             }
@@ -164,7 +168,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
         }
     };
 
-    // ✅ FUNCIÓN PARA AGRUPAR POR PACIENTE
+    // FUNCIÓN PARA AGRUPAR POR PACIENTE
     const agruparPorPaciente = (solicitudes) => {
         const pacientesMap = {};
 
@@ -204,7 +208,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
         return Object.values(pacientesMap);
     };
 
-    // ✅ FUNCIÓN PARA ORGANIZAR POR PRIORIDAD
+    // FUNCIÓN PARA ORGANIZAR POR PRIORIDAD
     const organizarPorPrioridad = (pacientesAgrupados) => {
         return pacientesAgrupados.reduce((acc, paciente) => {
             const prioridad = paciente.prioridad.toLowerCase();
@@ -231,7 +235,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
         });
     };
 
-    // ✅ FUNCIÓN PARA MARCAR EXÁMENES COMO TOMADOS
+    // FUNCIÓN PARA MARCAR EXÁMENES COMO TOMADOS
     const marcarExamenesTomados = async (solicitud, examenesIndices) => {
         try {
             setLoading(true);
@@ -278,7 +282,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
         return await marcarExamenesTomados(solicitud, todosLosIndices);
     };
 
-    // ✅ FUNCIONES DE PAGINACIÓN
+    // FUNCIONES DE PAGINACIÓN
     const paginateData = (data, categoria) => {
         const page = currentPage[categoria];
         const startIndex = (page - 1) * itemsPerPage;
@@ -311,6 +315,58 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
         cargarSolicitudes();
     }, [filtro, usarDatosPrueba]);
 
+    // Función de polling automático
+    const startPolling = useCallback((interval = 30000) => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+        }
+
+        setIsPollingActive(true);
+        pollingRef.current = setInterval(() => {
+            console.log('🔄 Actualizando datos automáticamente...');
+            cargarSolicitudes();
+        }, interval);
+    }, [cargarSolicitudes]);
+
+    const stopPolling = useCallback(() => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+        }
+        setIsPollingActive(false);
+    }, []);
+
+    // Auto-iniciar polling si se pasa el intervalo
+    useEffect(() => {
+        if (pollingInterval && pollingInterval > 0) {
+            startPolling(pollingInterval);
+        }
+
+        return () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+            }
+        };
+    }, [pollingInterval, startPolling]);
+
+    // Pausar polling cuando la pestaña no está visible
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                if (isPollingActive) {
+                    stopPolling();
+                }
+            } else {
+                if (pollingInterval && pollingInterval > 0) {
+                    startPolling(pollingInterval);
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [isPollingActive, pollingInterval, startPolling, stopPolling]);
+
     return {
         solicitudesData,
         loading,
@@ -322,6 +378,9 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false) => 
         paginateData,
         changePage,
         currentPage,
-        itemsPerPage
+        itemsPerPage,
+        startPolling,
+        stopPolling,
+        isPollingActive
     };
 };

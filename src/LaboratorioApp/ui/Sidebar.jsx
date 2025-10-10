@@ -15,7 +15,7 @@ const Sidebar = () => {
         }));
     };
 
-    // Función para manejar clics en submenús (React Router)
+    // Función para manejar clics en submenús
     const handleSubMenuClick = (route) => {
         console.log('Navegando a:', route);
     };
@@ -38,7 +38,7 @@ const Sidebar = () => {
                 <span className="font-semibold text-sm-900">Solutions HUSJP</span>
             </div>
 
-            {/* APP TURNOS Button */}
+            {/* APP Button */}
             <div className="p-4 border-b border-slate-700">
                 <Link to="/">
                     <button className="w-full bg-slate-700 hover:bg-slate-600 text-white p-3 rounded flex items-center justify-center gap-2 transition-colors">
