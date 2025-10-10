@@ -12,7 +12,9 @@ import {
     ChevronLeft,
     ChevronsLeft,
     ChevronsRight,
-    CheckCircle2
+    CheckCircle2,
+    Search,
+    X
 } from 'lucide-react';
 import { useSolicitudes } from '../../hook/useSolicitudes';
 
@@ -24,6 +26,15 @@ const ExamenesTable = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [confirmAction, setConfirmAction] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    // Estados para los filtros de búsqueda
+    const [filtros, setFiltros] = useState({
+        historia: '',
+        paciente: '',
+        ingreso: '',
+        folio: '',
+        area: ''
+    });
+    const [filtrosActivos, setFiltrosActivos] = useState(false);
 
     const USAR_DATOS_PRUEBA = API_CONFIG.USE_TEST_DATA;
 
@@ -51,6 +62,68 @@ const ExamenesTable = () => {
             [key]: !prev[key]
         }));
     };
+
+    // Función para manejar cambios en los filtros
+    const handleFiltroChange = (campo, valor) => {
+        setFiltros(prev => ({
+            ...prev,
+            [campo]: valor
+        }));
+
+        // Verificar si hay filtros activos
+        const tienesFiltros = Object.values({ ...filtros, [campo]: valor }).some(filtro => filtro.trim() !== '');
+        setFiltrosActivos(tienesFiltros);
+    };
+
+    // Función para limpiar todos los filtros
+    const limpiarFiltros = () => {
+        setFiltros({
+            historia: '',
+            paciente: '',
+            ingreso: '',
+            folio: '',
+            area: ''
+        });
+        setFiltrosActivos(false);
+    };
+
+    // Función para filtrar los datos
+    const filtrarDatos = (solicitudes) => {
+        if (!filtrosActivos) return solicitudes;
+
+        return solicitudes.filter(solicitud => {
+            const cumpleFiltros = [
+                !filtros.historia || solicitud.historia.toLowerCase().includes(filtros.historia.toLowerCase()),
+                !filtros.paciente || solicitud.paciente.toLowerCase().includes(filtros.paciente.toLowerCase()),
+                !filtros.ingreso || solicitud.ingreso.toLowerCase().includes(filtros.ingreso.toLowerCase()),
+                !filtros.folio || solicitud.folio.toLowerCase().includes(filtros.folio.toLowerCase()),
+                !filtros.area || solicitud.areaSolicitante.toLowerCase().includes(filtros.area.toLowerCase())
+            ];
+
+            return cumpleFiltros.every(cumple => cumple);
+        });
+    };
+
+    // Componente de input de filtro
+    const InputFiltro = ({ campo, placeholder, valor, onChange, ancho = "w-full" }) => (
+        <div className={`relative ${ancho}`}>
+            <input
+                type="text"
+                placeholder={placeholder}
+                value={valor}
+                onChange={(e) => onChange(campo, e.target.value)}
+                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {valor && (
+                <button
+                    onClick={() => onChange(campo, '')}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                    <X className="w-3 h-3" />
+                </button>
+            )}
+        </div>
+    );
 
     // Función para marcar/desmarcar todos los exámenes de un paciente
     const toggleAllExams = async (categoria, pacienteIndex, examenes, solicitud) => {
@@ -310,28 +383,57 @@ const ExamenesTable = () => {
     }
 
     const renderTablaCategoria = (categoria, solicitudes, titulo, colorHeader) => {
-        const paginationData = paginateData(solicitudes, categoria);
+        const solicitudesFiltradas = filtrarDatos(solicitudes);
+        const paginationData = paginateData(solicitudesFiltradas, categoria);
         const isTomadas = filtroActual === 'tomadas';
 
         return (
             <div className="mb-8">
-                <div className={`${colorHeader} text-white px-4 py-2 rounded-t-lg font-bold text-lg flex items-center`}>
-                    {titulo}
-                    {isTomadas && (
-                        <CheckCircle2 className="w-5 h-5 ml-2" />
+                <div className={`${colorHeader} text-white px-4 py-2 rounded-t-lg font-bold text-lg flex items-center justify-between`}>
+                    <div className="flex items-center">
+                        {titulo}
+                        {isTomadas && <CheckCircle2 className="w-5 h-5 ml-2" />}
+                    </div>
+                    {/* Indicador de filtros activos DENTRO del header */}
+                    {filtrosActivos && (
+                        <div className="flex items-center space-x-2">
+                            <Search className="w-4 h-4" />
+                            <span className="text-xs bg-white/20 px-2 py-1 rounded">
+                                {solicitudesFiltradas.length} de {solicitudes.length}
+                            </span>
+                            <button
+                                onClick={limpiarFiltros}
+                                className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded flex items-center"
+                            >
+                                <X className="w-3 h-3 mr-1" />
+                                Limpiar
+                            </button>
+                        </div>
                     )}
                 </div>
 
-                {paginationData.items.length === 0 ? (
+                {paginationData.items.length === 0 && solicitudes.length > 0 && filtrosActivos ? (
+                    <div className="bg-white shadow-lg rounded-b-lg p-8 text-center text-gray-500">
+                        <Search className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                        <p>No se encontraron resultados con los filtros aplicados</p>
+                        <button
+                            onClick={limpiarFiltros}
+                            className="mt-2 text-blue-600 hover:underline text-sm"
+                        >
+                            Limpiar filtros
+                        </button>
+                    </div>
+                ) : paginationData.items.length === 0 ? (
                     <div className="bg-white shadow-lg rounded-b-lg p-8 text-center text-gray-500">
                         <TestTube className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                         <p>No hay solicitudes {titulo.toLowerCase()} en este momento</p>
                     </div>
                 ) : (
                     <div className="bg-white shadow-lg rounded-b-lg overflow-hidden">
-                        {/* Headers - Ajustar columnas según si es "tomadas" */}
-                        <div className="bg-gray-800 text-white text-sm">
-                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold`}>
+                        {/* Headers con filtros */}
+                        <div className="bg-gray-800 text-white">
+                            {/* Fila de títulos */}
+                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold text-sm`}>
                                 <div className="col-span-1">Historia</div>
                                 <div className="col-span-3">Paciente</div>
                                 <div className="col-span-1">Edad</div>
@@ -342,6 +444,67 @@ const ExamenesTable = () => {
                                 <div className="col-span-2">Fecha Solicitud</div>
                                 <div className={`${isTomadas ? 'col-span-3' : 'col-span-3'}`}>Área Solicitante</div>
                                 {!isTomadas && <div className="col-span-1">Acciones</div>}
+                            </div>
+
+                            {/* Fila de filtros */}
+                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-2 bg-gray-700`}>
+                                <div className="col-span-1">
+                                    <InputFiltro
+                                        campo="historia"
+                                        placeholder="Buscar historia..."
+                                        valor={filtros.historia}
+                                        onChange={handleFiltroChange}
+                                    />
+                                </div>
+                                <div className="col-span-3">
+                                    <InputFiltro
+                                        campo="paciente"
+                                        placeholder="Buscar paciente..."
+                                        valor={filtros.paciente}
+                                        onChange={handleFiltroChange}
+                                    />
+                                </div>
+                                <div className="col-span-1">
+                                    {/* Sin filtro para edad */}
+                                </div>
+                                <div className="col-span-1">
+                                    <InputFiltro
+                                        campo="ingreso"
+                                        placeholder="Buscar ingreso..."
+                                        valor={filtros.ingreso}
+                                        onChange={handleFiltroChange}
+                                    />
+                                </div>
+                                <div className="col-span-1">
+                                    <InputFiltro
+                                        campo="folio"
+                                        placeholder="Buscar folio..."
+                                        valor={filtros.folio}
+                                        onChange={handleFiltroChange}
+                                    />
+                                </div>
+                                <div className="col-span-1">
+                                    {/* Sin filtro para cama */}
+                                </div>
+                                <div className="col-span-2">
+                                    {/* Sin filtro para exámenes */}
+                                </div>
+                                <div className="col-span-2">
+                                    {/* Sin filtro para fecha */}
+                                </div>
+                                <div className="col-span-3">
+                                    <InputFiltro
+                                        campo="area"
+                                        placeholder="Buscar área..."
+                                        valor={filtros.area}
+                                        onChange={handleFiltroChange}
+                                    />
+                                </div>
+                                {!isTomadas && (
+                                    <div className="col-span-1">
+                                        {/* Sin filtro para acciones */}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -575,6 +738,24 @@ const ExamenesTable = () => {
                         <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
                         <span className="text-lg font-semibold text-gray-700">Guardando examen(es) tomado(s)...</span>
                     </div>
+                </div>
+            )}
+
+            {/* Indicador global de filtros activos */}
+            {filtrosActivos && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center">
+                        <Search className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm text-blue-800">
+                            Filtros activos aplicados
+                        </span>
+                    </div>
+                    <button
+                        onClick={limpiarFiltros}
+                        className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                        Limpiar todos los filtros
+                    </button>
                 </div>
             )}
 
