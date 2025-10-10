@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Header = ({ onToggleSidebar, isSidebarOpen }) => (
-    <header className="bg-white shadow p-4 flex justify-between items-center">
+    <header className="bg-white shadow p-4 flex justify-between items-center relative z-10">
         <div className="flex items-center gap-4">
             <button
                 onClick={onToggleSidebar}

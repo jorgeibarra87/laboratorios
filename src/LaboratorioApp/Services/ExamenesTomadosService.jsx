@@ -1,4 +1,4 @@
-//services/examesTomadosService.js
+// Services/examesTomadosService.js
 import { API_CONFIG } from '../config/api';
 
 class ExamenesTomadosService {
@@ -6,13 +6,10 @@ class ExamenesTomadosService {
     async makeLocalRequest(endpoint, options = {}) {
         const url = `${API_CONFIG.LOCAL_API.BASE_URL}${endpoint}`;
 
-        console.log('🏠 Petición a backend local (exámenes tomados):', url);
-
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
             },
-            timeout: API_CONFIG.LOCAL_API.TIMEOUT,
             ...options
         };
 
@@ -20,12 +17,21 @@ class ExamenesTomadosService {
             const response = await fetch(url, defaultOptions);
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                let errorMessage = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorBody = await response.text();
+                    if (errorBody) {
+                        errorMessage += ` - ${errorBody}`;
+                    }
+                } catch (textError) {
+                    // Ignorar si no se puede leer el error
+                }
+                throw new Error(errorMessage);
             }
 
             return await response.json();
         } catch (error) {
-            console.error('❌ Error en petición a backend local (exámenes tomados):', error);
+            console.error('❌ Error en petición a backend local:', error);
             throw error;
         }
     }

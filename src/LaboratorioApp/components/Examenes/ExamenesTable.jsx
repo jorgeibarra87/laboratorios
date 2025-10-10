@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_CONFIG } from '../../config/api';
+import ConfirmDialog from './ConfirmDialog';
 import {
     ChevronDown,
     ChevronRight,
@@ -19,6 +20,11 @@ const ExamenesTable = () => {
     const [expandedPatients, setExpandedPatients] = useState({});
     const [checkedExams, setCheckedExams] = useState({});
     const [filtroActual, setFiltroActual] = useState('actuales');
+    // estados para confirmación
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+
     const USAR_DATOS_PRUEBA = API_CONFIG.USE_TEST_DATA;
 
     // Debug para verificar
@@ -47,39 +53,142 @@ const ExamenesTable = () => {
     };
 
     // Función para marcar/desmarcar todos los exámenes de un paciente
-    const toggleAllExams = (categoria, pacienteIndex, examenes) => {
+    const toggleAllExams = async (categoria, pacienteIndex, examenes, solicitud) => {
         // No permitir cambios en "tomadas"
         if (filtroActual === 'tomadas') return;
 
         const baseKey = `${categoria}-${pacienteIndex}`;
         const allExamKeys = examenes.map((_, examIndex) => `${baseKey}-exam-${examIndex}`);
-
         const allChecked = allExamKeys.every(key => checkedExams[key]);
 
-        setCheckedExams(prev => {
-            const newState = { ...prev };
-            allExamKeys.forEach(key => {
-                if (allChecked) {
-                    delete newState[key];
-                } else {
-                    newState[key] = true;
-                }
+        if (!allChecked) {
+            // Mostrar confirmación antes de marcar como tomados
+            setConfirmAction({
+                type: 'all',
+                categoria,
+                pacienteIndex,
+                examenes,
+                solicitud,
+                allExamKeys,
+                message: `¿Está seguro de marcar TODOS los exámenes (${examenes.length}) del paciente ${solicitud.paciente} como tomados?`,
+                title: 'Confirmar exámenes tomados'
             });
-            return newState;
-        });
+            setShowConfirm(true);
+        } else {
+            // Solo desmarcar localmente (no enviar al backend)
+            setCheckedExams(prev => {
+                const newState = { ...prev };
+                allExamKeys.forEach(key => {
+                    delete newState[key];
+                });
+                return newState;
+            });
+        }
     };
 
     // Función para marcar/desmarcar un examen individual
-    const toggleSingleExam = (categoria, pacienteIndex, examIndex) => {
+    const toggleSingleExam = async (categoria, pacienteIndex, examIndex, solicitud) => {
         // No permitir cambios en "tomadas"
         if (filtroActual === 'tomadas') return;
 
         const examKey = `${categoria}-${pacienteIndex}-exam-${examIndex}`;
+        const wasChecked = checkedExams[examKey];
+        const nombreExamen = solicitud.examenes[examIndex];
 
-        setCheckedExams(prev => ({
-            ...prev,
-            [examKey]: !prev[examKey]
-        }));
+        if (!wasChecked) {
+            // Mostrar confirmación antes de marcar como tomado
+            setConfirmAction({
+                type: 'single',
+                categoria,
+                pacienteIndex,
+                examIndex,
+                solicitud,
+                examKey,
+                message: `¿Está seguro de marcar el examen "${nombreExamen}" del paciente ${solicitud.paciente} como tomado?`,
+                title: 'Confirmar examen tomado'
+            });
+            setShowConfirm(true);
+        } else {
+            // Solo desmarcar localmente (no enviar al backend)
+            setCheckedExams(prev => {
+                const newState = { ...prev };
+                delete newState[examKey];
+                return newState;
+            });
+        }
+    };
+
+    // ✅ FUNCIÓN para ejecutar la acción confirmada
+    const handleConfirmAction = async () => {
+        if (!confirmAction) return;
+
+        setIsProcessing(true);
+        setShowConfirm(false);
+
+        try {
+            if (confirmAction.type === 'all') {
+                // Marcar como checked localmente primero
+                setCheckedExams(prev => {
+                    const newState = { ...prev };
+                    confirmAction.allExamKeys.forEach(key => {
+                        newState[key] = true;
+                    });
+                    return newState;
+                });
+
+                // Enviar todos los exámenes al backend
+                const result = await marcarTodosLosExamenes(confirmAction.solicitud);
+
+                if (!result.success) {
+                    // Revertir cambios locales si falla
+                    setCheckedExams(prev => {
+                        const newState = { ...prev };
+                        confirmAction.allExamKeys.forEach(key => {
+                            delete newState[key];
+                        });
+                        return newState;
+                    });
+                    alert(`Error al guardar exámenes: ${result.error}`);
+                } else {
+                    console.log('✅ Todos los exámenes marcados como tomados exitosamente');
+                }
+
+            } else if (confirmAction.type === 'single') {
+                // Marcar como checked localmente primero
+                setCheckedExams(prev => ({
+                    ...prev,
+                    [confirmAction.examKey]: true
+                }));
+
+                // Enviar examen individual al backend
+                const result = await marcarExamenIndividual(confirmAction.solicitud, confirmAction.examIndex);
+
+                if (!result.success) {
+                    // Revertir si falla
+                    setCheckedExams(prev => {
+                        const newState = { ...prev };
+                        delete newState[confirmAction.examKey];
+                        return newState;
+                    });
+                    alert(`Error al guardar examen: ${result.error}`);
+                } else {
+                    console.log('✅ Examen marcado como tomado exitosamente');
+                }
+            }
+
+        } catch (error) {
+            console.error('Error procesando acción:', error);
+            alert(`Error inesperado: ${error.message}`);
+        } finally {
+            setIsProcessing(false);
+            setConfirmAction(null);
+        }
+    };
+
+    // ✅ FUNCIÓN para cancelar la acción
+    const handleCancelAction = () => {
+        setShowConfirm(false);
+        setConfirmAction(null);
     };
 
     // Verificar si todos los exámenes están marcados
@@ -294,12 +403,13 @@ const ExamenesTable = () => {
                                             {!isTomadas && (
                                                 <div className="col-span-1 flex space-x-1 justify-center">
                                                     <button
-                                                        className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'}`}
+                                                        className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            toggleAllExams(categoria, index, solicitud.examenes);
+                                                            toggleAllExams(categoria, index, solicitud.examenes, solicitud); // ✅ PASAR SOLICITUD
                                                         }}
-                                                        title={allExamsChecked ? "Desmarcar todos los exámenes" : "Marcar todos los exámenes"}
+                                                        disabled={isProcessing}
+                                                        title={allExamsChecked ? "Desmarcar todos los exámenes" : "Marcar todos los exámenes como tomados"}
                                                     >
                                                         <Check className="w-4 h-4" />
                                                     </button>
@@ -346,9 +456,10 @@ const ExamenesTable = () => {
                                                                     {!isTomadas && (
                                                                         <div className="flex space-x-1">
                                                                             <button
-                                                                                className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'}`}
-                                                                                onClick={() => toggleSingleExam(categoria, index, examIndex)}
-                                                                                title={isChecked ? "Marcar como pendiente" : "Marcar como completado"}
+                                                                                className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                                onClick={() => toggleSingleExam(categoria, index, examIndex, solicitud)} // ✅ PASAR SOLICITUD
+                                                                                disabled={isProcessing}
+                                                                                title={isChecked ? "Marcar como pendiente" : "Marcar como tomado"}
                                                                             >
                                                                                 <Check className="w-4 h-4" />
                                                                             </button>
@@ -444,8 +555,30 @@ const ExamenesTable = () => {
                     {filtroActual === 'tomadas' && ' - Exámenes completados'}
                 </p>
             </div>
+            {/* MODAL */}
+            {showConfirm && (
+                <ConfirmDialog
+                    isOpen={showConfirm}
+                    onClose={handleCancelAction}
+                    onConfirm={handleConfirmAction}
+                    title={confirmAction?.title || ''}
+                    message={confirmAction?.message || ''}
+                    confirmText="Sí, marcar como tomado"
+                    cancelText="Cancelar"
+                />
+            )}
 
-            {/* Tablas por categoría con paginación */}
+            {/* Indicador de procesamiento */}
+            {isProcessing && (
+                <div className="absolute inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex justify-center items-center">
+                    <div className="bg-white p-6 rounded-lg flex flex-col justify-center items-center gap-4">
+                        <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+                        <span className="text-lg font-semibold text-gray-700">Guardando examen(es) tomado(s)...</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Tablas por categoría */}
             {renderTablaCategoria('urgentes', solicitudesData.urgentes, 'URGENTES', 'bg-red-600')}
             {renderTablaCategoria('prioritario', solicitudesData.prioritario, 'PRIORITARIAS', 'bg-yellow-500')}
             {renderTablaCategoria('rutinario', solicitudesData.rutinario, 'RUTINARIAS', 'bg-green-600')}

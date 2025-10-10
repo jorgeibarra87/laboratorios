@@ -31,7 +31,7 @@ const Sidebar = () => {
     ];
 
     return (
-        <aside className="bg-slate-800 text-white w-80 h-screen overflow-y-auto">
+        <aside className="bg-slate-800 text-white w-80 h-screen overflow-y-auto relative z-10">
             {/* Header */}
             <div className="text-white p-4 flex items-center border-b border-slate-700">
                 <img src="/solutions.svg" alt="Icono S" className="p-3" />

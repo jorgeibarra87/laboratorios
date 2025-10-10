@@ -12,7 +12,7 @@ const App = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 relative">
       {/* Barra lateral condicional */}
       {isSidebarOpen && <Sidebar />}
 
@@ -22,7 +22,7 @@ const App = () => {
         <Header onToggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
 
         {/* Contenido */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto relative">
           <Routes>
             <Route path="/" element={<ExamenesTable />} />
             <Route path="/examenes" element={<ExamenesTable />} />
