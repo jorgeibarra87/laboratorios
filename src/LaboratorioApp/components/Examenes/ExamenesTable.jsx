@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { API_CONFIG } from '../../config/api';
 import ConfirmDialog from './ConfirmDialog';
 import {
@@ -17,6 +17,41 @@ import {
     X
 } from 'lucide-react';
 import { useSolicitudes } from '../../hook/useSolicitudes';
+
+// Componente de input de filtro
+const InputFiltro = ({ campo, placeholder, valor, onChange, ancho = "w-full" }) => (
+    <div className={`relative ${ancho}`}>
+        <input
+            type="text"
+            placeholder={placeholder}
+            value={valor}
+            onChange={(e) => {
+                e.stopPropagation();
+                onChange(campo, e.target.value);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            // ✅ ESTILOS MEJORADOS PARA MEJOR VISIBILIDAD
+            className="w-full px-2 py-1.5 text-sm font-medium text-gray-900 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-gray-400 transition-all duration-200 shadow-sm"
+        />
+        {valor && (
+            <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onChange(campo, '');
+                }}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors p-0.5 bg-white rounded"
+                type="button"
+                tabIndex={-1}
+            >
+                <X className="w-3 h-3" />
+            </button>
+        )}
+    </div>
+);
 
 const ExamenesTable = () => {
     const [expandedPatients, setExpandedPatients] = useState({});
@@ -64,19 +99,23 @@ const ExamenesTable = () => {
     };
 
     // Función para manejar cambios en los filtros
-    const handleFiltroChange = (campo, valor) => {
-        setFiltros(prev => ({
-            ...prev,
-            [campo]: valor
-        }));
+    const handleFiltroChange = useCallback((campo, valor) => {
+        setFiltros(prev => {
+            const newFiltros = {
+                ...prev,
+                [campo]: valor
+            };
 
-        // Verificar si hay filtros activos
-        const tienesFiltros = Object.values({ ...filtros, [campo]: valor }).some(filtro => filtro.trim() !== '');
-        setFiltrosActivos(tienesFiltros);
-    };
+            // Verificar si hay filtros activos
+            const tienesFiltros = Object.values(newFiltros).some(filtro => filtro.trim() !== '');
+            setFiltrosActivos(tienesFiltros);
+
+            return newFiltros;
+        });
+    }, []);
 
     // Función para limpiar todos los filtros
-    const limpiarFiltros = () => {
+    const limpiarFiltros = useCallback(() => {
         setFiltros({
             historia: '',
             paciente: '',
@@ -85,45 +124,47 @@ const ExamenesTable = () => {
             area: ''
         });
         setFiltrosActivos(false);
+    }, []);
+
+    // FUNCIÓN PARA NORMALIZAR TEXTO (quitar tildes y convertir a minúsculas)
+    const normalizarTexto = (texto) => {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remover tildes
+            .trim();
     };
 
     // Función para filtrar los datos
-    const filtrarDatos = (solicitudes) => {
+    const filtrarDatos = useCallback((solicitudes) => {
         if (!filtrosActivos) return solicitudes;
 
         return solicitudes.filter(solicitud => {
-            const cumpleFiltros = [
-                !filtros.historia || solicitud.historia.toLowerCase().includes(filtros.historia.toLowerCase()),
-                !filtros.paciente || solicitud.paciente.toLowerCase().includes(filtros.paciente.toLowerCase()),
-                !filtros.ingreso || solicitud.ingreso.toLowerCase().includes(filtros.ingreso.toLowerCase()),
-                !filtros.folio || solicitud.folio.toLowerCase().includes(filtros.folio.toLowerCase()),
-                !filtros.area || solicitud.areaSolicitante.toLowerCase().includes(filtros.area.toLowerCase())
-            ];
+            // Normalizar datos de la solicitud
+            const historia = normalizarTexto(solicitud.historia);
+            const paciente = normalizarTexto(solicitud.paciente);
+            const ingreso = normalizarTexto(solicitud.ingreso);
+            const folio = normalizarTexto(solicitud.folio);
+            const area = normalizarTexto(solicitud.areaSolicitante);
 
-            return cumpleFiltros.every(cumple => cumple);
+            // Normalizar filtros
+            const filtroHistoria = normalizarTexto(filtros.historia);
+            const filtroPaciente = normalizarTexto(filtros.paciente);
+            const filtroIngreso = normalizarTexto(filtros.ingreso);
+            const filtroFolio = normalizarTexto(filtros.folio);
+            const filtroArea = normalizarTexto(filtros.area);
+
+            return (
+                (!filtroHistoria || historia.includes(filtroHistoria)) &&
+                (!filtroPaciente || paciente.includes(filtroPaciente)) &&
+                (!filtroIngreso || ingreso.includes(filtroIngreso)) &&
+                (!filtroFolio || folio.includes(filtroFolio)) &&
+                (!filtroArea || area.includes(filtroArea))
+            );
         });
-    };
-
-    // Componente de input de filtro
-    const InputFiltro = ({ campo, placeholder, valor, onChange, ancho = "w-full" }) => (
-        <div className={`relative ${ancho}`}>
-            <input
-                type="text"
-                placeholder={placeholder}
-                value={valor}
-                onChange={(e) => onChange(campo, e.target.value)}
-                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {valor && (
-                <button
-                    onClick={() => onChange(campo, '')}
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                    <X className="w-3 h-3" />
-                </button>
-            )}
-        </div>
-    );
+    }, [filtrosActivos, filtros]);
 
     // Función para marcar/desmarcar todos los exámenes de un paciente
     const toggleAllExams = async (categoria, pacienteIndex, examenes, solicitud) => {
@@ -433,25 +474,49 @@ const ExamenesTable = () => {
                         {/* Headers con filtros */}
                         <div className="bg-gray-800 text-white">
                             {/* Fila de títulos */}
-                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold text-sm`}>
-                                <div className="col-span-1">Historia</div>
-                                <div className="col-span-3">Paciente</div>
-                                <div className="col-span-1">Edad</div>
-                                <div className="col-span-1">Ingreso</div>
-                                <div className="col-span-1">Folio</div>
-                                <div className="col-span-1">Cama</div>
-                                <div className="col-span-2">Exámenes</div>
-                                <div className="col-span-2">Fecha Solicitud</div>
-                                <div className={`${isTomadas ? 'col-span-3' : 'col-span-3'}`}>Área Solicitante</div>
-                                {!isTomadas && <div className="col-span-1">Acciones</div>}
+                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold text-sm bg-gray-800`}>
+                                <div className="col-span-1 flex items-center">
+                                    <Database className="w-4 h-4 mr-1" />
+                                    Historia
+                                </div>
+                                <div className="col-span-3 flex items-center">
+                                    <span className="w-4 h-4 mr-1">👤</span>
+                                    Paciente
+                                </div>
+                                <div className="col-span-1 text-center">Edad</div>
+                                <div className="col-span-1 flex items-center justify-center">
+                                    <span className="w-4 h-4 mr-1">🏥</span>
+                                    Ingreso
+                                </div>
+                                <div className="col-span-1 flex items-center justify-center">
+                                    <span className="w-4 h-4 mr-1">📄</span>
+                                    Folio
+                                </div>
+                                <div className="col-span-1 flex items-center justify-center">
+                                    <MapPin className="w-4 h-4 mr-1" />
+                                    Cama
+                                </div>
+                                <div className="col-span-2 flex items-center justify-center">
+                                    <TestTube className="w-4 h-4 mr-1" />
+                                    Exámenes
+                                </div>
+                                <div className="col-span-2 flex items-center justify-center">
+                                    <span className="w-4 h-4 mr-1">📅</span>
+                                    Fecha Solicitud
+                                </div>
+                                <div className="col-span-3 flex items-center justify-center">
+                                    <span className="w-4 h-4 mr-1">🏢</span>
+                                    Área Solicitante
+                                </div>
+                                {!isTomadas && <div className="col-span-1 text-center">Acciones</div>}
                             </div>
 
                             {/* Fila de filtros */}
-                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-2 bg-gray-700`}>
+                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-2 px-4 py-4 bg-gradient-to-r from-gray-700 to-gray-600 border-t border-gray-600`}>
                                 <div className="col-span-1">
                                     <InputFiltro
                                         campo="historia"
-                                        placeholder="Buscar historia..."
+                                        placeholder="Historia..."
                                         valor={filtros.historia}
                                         onChange={handleFiltroChange}
                                     />
@@ -459,18 +524,18 @@ const ExamenesTable = () => {
                                 <div className="col-span-3">
                                     <InputFiltro
                                         campo="paciente"
-                                        placeholder="Buscar paciente..."
+                                        placeholder="Nombre Paciente..."
                                         valor={filtros.paciente}
                                         onChange={handleFiltroChange}
                                     />
                                 </div>
-                                <div className="col-span-1">
-                                    {/* Sin filtro para edad */}
+                                <div className="col-span-1 flex items-center justify-center">
+                                    <span className="text-xs text-gray-300">-</span>
                                 </div>
                                 <div className="col-span-1">
                                     <InputFiltro
                                         campo="ingreso"
-                                        placeholder="Buscar ingreso..."
+                                        placeholder="N° Ingreso..."
                                         valor={filtros.ingreso}
                                         onChange={handleFiltroChange}
                                     />
@@ -478,31 +543,44 @@ const ExamenesTable = () => {
                                 <div className="col-span-1">
                                     <InputFiltro
                                         campo="folio"
-                                        placeholder="Buscar folio..."
+                                        placeholder="N° Folio..."
                                         valor={filtros.folio}
                                         onChange={handleFiltroChange}
                                     />
                                 </div>
-                                <div className="col-span-1">
-                                    {/* Sin filtro para cama */}
+                                <div className="col-span-1 flex items-center justify-center">
+                                    <span className="text-xs text-gray-300">-</span>
                                 </div>
-                                <div className="col-span-2">
-                                    {/* Sin filtro para exámenes */}
+                                {/* ✅ CORREGIR: 2 columnas para exámenes */}
+                                <div className="col-span-2 flex items-center justify-center">
+                                    <span className="text-xs text-gray-300">-</span>
                                 </div>
-                                <div className="col-span-2">
-                                    {/* Sin filtro para fecha */}
+                                {/* ✅ CORREGIR: 2 columnas para fecha */}
+                                <div className="col-span-2 flex items-center justify-center">
+                                    <span className="text-xs text-gray-300">-</span>
                                 </div>
                                 <div className="col-span-3">
                                     <InputFiltro
                                         campo="area"
-                                        placeholder="Buscar área..."
+                                        placeholder="Área solicitante..."
                                         valor={filtros.area}
                                         onChange={handleFiltroChange}
                                     />
                                 </div>
                                 {!isTomadas && (
-                                    <div className="col-span-1">
-                                        {/* Sin filtro para acciones */}
+                                    <div className="col-span-1 flex items-center justify-center">
+                                        {filtrosActivos && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    limpiarFiltros();
+                                                }}
+                                                className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded flex items-center transition-colors"
+                                                title="Limpiar todos los filtros"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -720,15 +798,17 @@ const ExamenesTable = () => {
             </div>
             {/* MODAL */}
             {showConfirm && (
-                <ConfirmDialog
-                    isOpen={showConfirm}
-                    onClose={handleCancelAction}
-                    onConfirm={handleConfirmAction}
-                    title={confirmAction?.title || ''}
-                    message={confirmAction?.message || ''}
-                    confirmText="Sí, marcar como tomado"
-                    cancelText="Cancelar"
-                />
+                <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex justify-center items-center z-[9]">
+                    <ConfirmDialog
+                        isOpen={showConfirm}
+                        onClose={handleCancelAction}
+                        onConfirm={handleConfirmAction}
+                        title={confirmAction?.title || ''}
+                        message={confirmAction?.message || ''}
+                        confirmText="Sí, marcar como tomado"
+                        cancelText="Cancelar"
+                    />
+                </div>
             )}
 
             {/* Indicador de procesamiento */}
@@ -743,19 +823,54 @@ const ExamenesTable = () => {
 
             {/* Indicador global de filtros activos */}
             {filtrosActivos && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center">
-                        <Search className="w-4 h-4 text-blue-600 mr-2" />
-                        <span className="text-sm text-blue-800">
-                            Filtros activos aplicados
-                        </span>
+                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-2">
+                                <Search className="w-5 h-5 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-800">
+                                    Filtros activos
+                                </span>
+                            </div>
+
+                            {/* Mostrar filtros activos */}
+                            <div className="flex flex-wrap gap-2">
+                                {Object.entries(filtros).map(([key, value]) => {
+                                    if (!value.trim()) return null;
+                                    const labels = {
+                                        historia: 'Historia',
+                                        paciente: 'Paciente',
+                                        ingreso: 'Ingreso',
+                                        folio: 'Folio',
+                                        area: 'Área'
+                                    };
+
+                                    return (
+                                        <span
+                                            key={key}
+                                            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 border border-blue-200"
+                                        >
+                                            <strong>{labels[key]}:</strong>&nbsp;{value}
+                                            <button
+                                                onClick={() => handleFiltroChange(key, '')}
+                                                className="ml-1 text-blue-600 hover:text-blue-800"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={limpiarFiltros}
+                            className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 px-3 py-1 rounded-md transition-all"
+                        >
+                            <X className="w-4 h-4" />
+                            <span>Limpiar todos</span>
+                        </button>
                     </div>
-                    <button
-                        onClick={limpiarFiltros}
-                        className="text-sm text-blue-600 hover:text-blue-800 underline"
-                    >
-                        Limpiar todos los filtros
-                    </button>
                 </div>
             )}
 
