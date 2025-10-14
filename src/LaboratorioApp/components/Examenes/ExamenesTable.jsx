@@ -376,7 +376,7 @@ const ExamenesTable = () => {
                             const pageNum = index + 1;
                             return (
                                 <button
-                                    key={`${categoria}-page-${pageNum}`} // ✅ KEY CORREGIDA
+                                    key={`${categoria}-page-${pageNum}`}
                                     onClick={() => changePage(categoria, pageNum)}
                                     className={`px-3 py-1 text-sm rounded ${page === pageNum
                                         ? 'bg-blue-600 text-white'
@@ -474,7 +474,7 @@ const ExamenesTable = () => {
                         {/* Headers con filtros */}
                         <div className="bg-gray-800 text-white">
                             {/* Fila de títulos */}
-                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold text-sm bg-gray-800`}>
+                            <div className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold text-sm bg-gray-800`}>
                                 <div className="col-span-1 flex items-center">
                                     <Database className="w-4 h-4 mr-1" />
                                     Historia
@@ -504,6 +504,13 @@ const ExamenesTable = () => {
                                     <span className="w-4 h-4 mr-1">📅</span>
                                     Fecha Solicitud
                                 </div>
+                                {/* fecha para tomadas: */}
+                                {isTomadas && (
+                                    <div className="col-span-2 flex items-center">
+                                        <span className="w-4 h-4 mr-1">📅</span>
+                                        Fecha Tomado
+                                    </div>
+                                )}
                                 <div className="col-span-3 flex items-center">
                                     <span className="w-4 h-4 mr-1">🏢</span>
                                     Área Solicitante
@@ -512,7 +519,7 @@ const ExamenesTable = () => {
                             </div>
 
                             {/* Fila de filtros */}
-                            <div className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-2 px-4 py-4 bg-gradient-to-r from-gray-700 to-gray-600 border-t border-gray-600`}>
+                            <div className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-2 px-4 py-4 bg-gradient-to-r from-gray-700 to-gray-600 border-t border-gray-600`}>
                                 <div className="col-span-1">
                                     <InputFiltro
                                         campo="historia"
@@ -559,6 +566,12 @@ const ExamenesTable = () => {
                                 <div className="col-span-2 flex items-center justify-center">
                                     <span className="text-xs text-gray-300">-</span>
                                 </div>
+                                {/* AGREGAR: 2 columnas para fecha tomado - solo para tomadas */}
+                                {isTomadas && (
+                                    <div className="col-span-2 flex items-center justify-center">
+                                        <span className="text-xs text-gray-300">-</span>
+                                    </div>
+                                )}
                                 <div className="col-span-3">
                                     <InputFiltro
                                         campo="area"
@@ -597,9 +610,10 @@ const ExamenesTable = () => {
                                     <div key={`${categoria}-${solicitud.id}-${index}`}>
                                         {/* Fila del paciente */}
                                         <div
-                                            className={`grid ${isTomadas ? 'grid-cols-15' : 'grid-cols-16'} gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${isTomadas ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-blue-50'}`}
+                                            className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${isTomadas ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-blue-50'}`}
                                             onClick={() => togglePatient(categoria, index)}
                                         >
+                                            {console.log('Renderizando solicitud:', solicitud)}
                                             <div className="col-span-1 font-medium text-sm">{solicitud.historia}</div>
                                             <div className="col-span-3 font-semibold text-blue-800 flex items-center">
                                                 {isExpanded ?
@@ -636,6 +650,12 @@ const ExamenesTable = () => {
                                                 </div>
                                             </div>
                                             <div className="col-span-2 text-sm">{solicitud.fechaSolicitud}</div>
+                                            {/* Fecha Tomado - 2 columnas - solo para tomadas */}
+                                            {isTomadas && (
+                                                <div className="col-span-2 text-sm">
+                                                    {solicitud.fechaTomado || solicitud.FechaTomado || 'No disponible'}
+                                                </div>
+                                            )}
                                             <div className="col-span-3 text-xs text-gray-600">
                                                 <span className="truncate block">{solicitud.areaSolicitante}</span>
                                             </div>
@@ -647,7 +667,7 @@ const ExamenesTable = () => {
                                                         className={`p-1 ${allExamsChecked ? 'text-green-800 bg-green-100' : 'text-green-600 hover:text-green-800'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            toggleAllExams(categoria, index, solicitud.examenes, solicitud); // PASAR SOLICITUD
+                                                            toggleAllExams(categoria, index, solicitud.examenes, solicitud);
                                                         }}
                                                         disabled={isProcessing}
                                                         title={allExamsChecked ? "Desmarcar todos los exámenes" : "Marcar todos los exámenes como tomados"}
@@ -676,7 +696,7 @@ const ExamenesTable = () => {
 
                                                             return (
                                                                 <div
-                                                                    key={`${categoria}-${solicitud.id}-${index}-exam-${examIndex}`} // ✅ KEY ÚNICA CORREGIDA
+                                                                    key={`${categoria}-${solicitud.id}-${index}-exam-${examIndex}`}
                                                                     className={`flex items-center justify-between rounded p-2 shadow-sm ${isChecked ? 'bg-green-50 border border-green-200' : 'bg-white'}`}
                                                                 >
                                                                     <div className="flex items-center">
@@ -698,7 +718,7 @@ const ExamenesTable = () => {
                                                                         <div className="flex space-x-1">
                                                                             <button
                                                                                 className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                                onClick={() => toggleSingleExam(categoria, index, examIndex, solicitud)} // ✅ PASAR SOLICITUD
+                                                                                onClick={() => toggleSingleExam(categoria, index, examIndex, solicitud)}
                                                                                 disabled={isProcessing}
                                                                                 title={isChecked ? "Marcar como pendiente" : "Marcar como tomado"}
                                                                             >
