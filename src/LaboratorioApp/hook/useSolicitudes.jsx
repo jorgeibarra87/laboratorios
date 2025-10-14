@@ -244,6 +244,10 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
     const marcarExamenesTomados = async (solicitud, examenesIndices) => {
         try {
             setLoading(true);
+            const now = new Date();
+            const localISOTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 19);
 
             const examenesTomados = examenesIndices.map(examIndex => ({
                 historia: solicitud.historia || solicitud.IdePaciente,
@@ -259,7 +263,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                 nomServicio: solicitud.examenes ? solicitud.examenes[examIndex] : solicitud.NomServicio,
                 observaciones: solicitud.observaciones || solicitud.Observaciones || '',
                 fechaSolicitud: solicitud.fechaSolicitud, // Fecha de la consulta externa
-                fechaTomado: new Date().toISOString().slice(0, 19), // Momento del checkeo
+                fechaTomado: localISOTime,// Momento del checkeo
                 responsable: 'Usuario Sistema'
             }));
 
