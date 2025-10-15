@@ -5,7 +5,6 @@ class SolicitudesService {
 
     // Métodos para la API DINAMICA (consultas)
     async makeDinamicaRequest(endpoint, options = {}) {
-        // En desarrollo usar proxy de Vite, en producción usar URL directa
         const baseUrl = import.meta.env.DEV
             ? '' // Vite proxy manejará automáticamente /hcnSolExa
             : 'http://192.168.16.160:8002';
@@ -52,13 +51,12 @@ class SolicitudesService {
             try {
                 const response = await this.makeDinamicaRequest(`${endpoint}?page=${currentPage}&size=50`);
 
-                // La API devuelve array directo según tu ejemplo
                 if (Array.isArray(response)) {
                     allData = [...allData, ...response];
                     hasMoreData = response.length === 50; // Si devuelve menos de 50, es la última página
                     //console.log(`Página ${currentPage + 1}: ${response.length} registros obtenidos`);
                 }
-                // Si la API cambia a formato Spring Boot estándar
+                // Si la API cambia a formato estándar
                 else if (response.content && Array.isArray(response.content)) {
                     allData = [...allData, ...response.content];
                     hasMoreData = !response.last;
@@ -72,7 +70,7 @@ class SolicitudesService {
 
                 currentPage++;
 
-                // Pequeña pausa para no sobrecargar la API
+                // pausa para no sobrecargar
                 if (hasMoreData) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
@@ -104,7 +102,7 @@ class SolicitudesService {
         return await this.makeDinamicaRequest(`/hcnSolExa/paciente/${documento}/urgentes?documento=${documento}`);
     }
 
-    // Método consolidado para obtener todos los pacientes
+    // obtener todos los pacientes
     async getTodosLosPacientesPorPrioridad() {
         try {
             //console.log('Iniciando consulta completa con paginación automática...');
@@ -139,7 +137,7 @@ class SolicitudesService {
 
     async makeLocalRequest(endpoint, options = {}) {
         const url = `${API_CONFIG.LOCAL_API.BASE_URL}${endpoint}`;
-        //console.log('🏠 Petición a backend local:', url);
+        //console.log('Petición a backend local:', url);
 
         const defaultOptions = {
             headers: {

@@ -384,7 +384,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
 
             let dataFiltrada = { urgentes: [], prioritario: [], rutinario: [] };
 
-            // SIEMPRE obtener exámenes tomados para filtrar
+            // obtener exámenes tomados para filtrar
             let examenesTomadosActuales = [];
 
             try {
@@ -397,7 +397,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                 //console.log('Cargando exámenes tomados desde backend...');
                 dataFiltrada = convertirExamenesTomadosAVista(examenesTomadosActuales);
             } else {
-                // Para 'actuales' con nueva lógica de filtrado individual
+                // Para 'actuales' lógica de filtrado individual
                 if (!usarDatosPrueba) {
                     //console.log('Cargando datos desde API externa dividida...');
                     try {
@@ -426,7 +426,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                             })
                         );
 
-                        // ⭐ PRIORITARIOS: Cargar exámenes detallados y filtrar individualmente
+                        // PRIORITARIOS: Cargar exámenes detallados y filtrar individualmente
                         const prioritariosConExamenes = await Promise.all(
                             prioritariosAPI.map(async paciente => {
                                 const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
@@ -442,7 +442,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                             })
                         );
 
-                        // ⭐ RUTINARIOS: Cargar exámenes detallados y filtrar individualmente
+                        // RUTINARIOS: Cargar exámenes detallados y filtrar individualmente
                         const rutinariosConExamenes = await Promise.all(
                             rutinariosAPI.map(async paciente => {
                                 const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
@@ -469,7 +469,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
 
                     } catch (apiError) {
                         console.error('❌ Error cargando desde API externa, usando datos de prueba:', apiError);
-                        // Fallback: usar datos de prueba
+                        // usar datos de prueba
                         const urgentesAPI = convertirResumenPacientes(datosPruebaResumenPacientes.urgentes, 'Urgente');
                         const prioritariosAPI = convertirResumenPacientes(datosPruebaResumenPacientes.prioritarios, 'Prioritaria');
                         const rutinariosAPI = convertirResumenPacientes(datosPruebaResumenPacientes.rutinarios, 'Rutinario');
@@ -490,7 +490,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                             })
                         );
 
-                        // ⭐ PRIORITARIOS FALLBACK
+                        // PRIORITARIOS BACK
                         const prioritariosConExamenes = await Promise.all(
                             prioritariosAPI.map(async paciente => {
                                 const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
@@ -506,7 +506,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                             })
                         );
 
-                        // ⭐ RUTINARIOS FALLBACK
+                        // RUTINARIOS BACK
                         const rutinariosConExamenes = await Promise.all(
                             rutinariosAPI.map(async paciente => {
                                 const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
@@ -680,15 +680,15 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
             // Actualizar el paciente con la nueva información
             return {
                 ...paciente,
-                examenes: examenesPendientes, // Solo exámenes pendientes para lógica
+                examenes: examenesPendientes, // Solo exámenes pendientes
                 examenesConEstado: examenesConEstado, // Todos los exámenes con estado
-                cantidadExamenes: paciente.cantidadExamenes, // Cantidad original
+                cantidadExamenes: paciente.cantidadExamenes, // Cantidad
                 cantidadPendientes: examenesPendientes.length,
                 cantidadTomados: examenesYaTomados.length,
                 tieneExamenesPendientes: examenesPendientes.length > 0
             };
         }).filter(paciente => {
-            // En pestaña "actuales", solo mostrar pacientes con exámenes pendientes
+            // En pestaña "actuales", mostrar pacientes con exámenes pendientes
             if (filtroActual === 'actuales') {
                 return paciente.tieneExamenesPendientes;
             }

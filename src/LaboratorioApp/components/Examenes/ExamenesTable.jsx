@@ -73,8 +73,7 @@ const ExamenesTable = () => {
 
     const USAR_DATOS_PRUEBA = API_CONFIG.USE_TEST_DATA;
 
-    //console.log('🧪 Modo de datos:', USAR_DATOS_PRUEBA ? 'PRUEBA' : 'PRODUCCIÓN');
-
+    //console.log('Modo de datos:', USAR_DATOS_PRUEBA ? 'PRUEBA' : 'PRODUCCIÓN');
     // Usar el custom hook
     const {
         solicitudesData,
@@ -212,7 +211,7 @@ const ExamenesTable = () => {
             });
             setShowConfirm(true);
         } else {
-            // Solo desmarcar localmente (no enviar al backend)
+            // Solo desmarcar localmente
             setCheckedExams(prev => {
                 const newState = { ...prev };
                 allExamKeys.forEach(key => {
@@ -246,7 +245,7 @@ const ExamenesTable = () => {
             });
             setShowConfirm(true);
         } else {
-            // Solo desmarcar localmente (no enviar al backend)
+            // Solo desmarcar localmente
             setCheckedExams(prev => {
                 const newState = { ...prev };
                 delete newState[examKey];
@@ -589,7 +588,7 @@ const ExamenesTable = () => {
                                 <div className="col-span-2 flex items-center justify-center">
                                     <span className="text-xs text-gray-300">-</span>
                                 </div>
-                                {/* AGREGAR: 2 columnas para fecha tomado - solo para tomadas */}
+                                {/* 2 columnas para fecha tomado - solo para tomadas */}
                                 {isTomadas && (
                                     <div className="col-span-2 flex items-center justify-center">
                                         <span className="text-xs text-gray-300">-</span>
