@@ -629,7 +629,14 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
             cama: item.cama,
             nombreCama: item.cama,
             fechaSolicitud: item.fechaSolicitud,
-            fechaSolicitudVista: new Date(item.fechaSolicitud).toLocaleDateString(),
+            fechaSolicitudVista: new Date(item.fechaSolicitud).toLocaleString('es-CO', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }),
             areaSolicitante: item.areaSolicitante,
             estado: 'Actual',
             prioridad: prioridadTipo,

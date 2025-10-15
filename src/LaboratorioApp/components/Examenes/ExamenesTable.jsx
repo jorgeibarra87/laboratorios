@@ -73,7 +73,6 @@ const ExamenesTable = () => {
 
     const USAR_DATOS_PRUEBA = API_CONFIG.USE_TEST_DATA;
 
-    // Debug para verificar
     //console.log('🧪 Modo de datos:', USAR_DATOS_PRUEBA ? 'PRUEBA' : 'PRODUCCIÓN');
 
     // Usar el custom hook
@@ -107,6 +106,19 @@ const ExamenesTable = () => {
                 console.log(`🔄 Expandiendo paciente: ${paciente.paciente}, cargando exámenes...`);
             }
         }
+    };
+
+    const formatearFecha = (fechaISO) => {
+        if (!fechaISO) return 'No disponible';
+
+        const fecha = new Date(fechaISO);
+        const dia = fecha.getDate().toString().padStart(2, '0');
+        const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+        const año = fecha.getFullYear();
+        const horas = fecha.getHours().toString().padStart(2, '0');
+        const minutos = fecha.getMinutes().toString().padStart(2, '0');
+
+        return `${dia}/${mes}/${año} ${horas}:${minutos}`;
     };
 
     // Función para manejar cambios en los filtros
@@ -485,7 +497,7 @@ const ExamenesTable = () => {
                         {/* Headers con filtros */}
                         <div className="bg-gray-800 text-white">
                             {/* Fila de títulos */}
-                            <div className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-1 px-4 py-3 font-semibold text-sm bg-gray-800`}>
+                            <div className={`grid ${isTomadas ? 'grid-cols-18' : 'grid-cols-17'} gap-1 px-4 py-3 font-semibold text-sm bg-gray-800`}>
                                 <div className="col-span-1 flex items-center">
                                     <Database className="w-4 h-4 mr-1" />
                                     Historia
@@ -503,7 +515,7 @@ const ExamenesTable = () => {
                                     <span className="w-4 h-4 mr-1">📄</span>
                                     Folio
                                 </div>
-                                <div className="col-span-1 flex items-center justify-center">
+                                <div className="col-span-2 flex items-center justify-center">
                                     <MapPin className="w-4 h-4 mr-1" />
                                     Cama
                                 </div>
@@ -530,7 +542,7 @@ const ExamenesTable = () => {
                             </div>
 
                             {/* Fila de filtros */}
-                            <div className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-2 px-4 py-4 bg-gradient-to-r from-gray-700 to-gray-600 border-t border-gray-600`}>
+                            <div className={`grid ${isTomadas ? 'grid-cols-18' : 'grid-cols-17'} gap-2 px-4 py-4 bg-gradient-to-r from-gray-700 to-gray-600 border-t border-gray-600`}>
                                 <div className="col-span-1">
                                     <InputFiltro
                                         campo="historia"
@@ -566,7 +578,7 @@ const ExamenesTable = () => {
                                         onChange={handleFiltroChange}
                                     />
                                 </div>
-                                <div className="col-span-1 flex items-center justify-center">
+                                <div className="col-span-2 flex items-center justify-center">
                                     <span className="text-xs text-gray-300">-</span>
                                 </div>
                                 {/* 2 columnas para exámenes */}
@@ -621,7 +633,7 @@ const ExamenesTable = () => {
                                     <div key={`${categoria}-${solicitud.id}-${index}`}>
                                         {/* Fila del paciente */}
                                         <div
-                                            className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${isTomadas ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-blue-50'}`}
+                                            className={`grid ${isTomadas ? 'grid-cols-18' : 'grid-cols-17'} gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${isTomadas ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-blue-50'}`}
                                             onClick={() => togglePatient(categoria, index)}
                                         >
                                             <div className="col-span-1 font-medium text-sm">{solicitud.historia}</div>
@@ -631,9 +643,6 @@ const ExamenesTable = () => {
                                                     <ChevronRight className="w-4 h-4 mr-1 flex-shrink-0" />
                                                 }
                                                 <span className="truncate text-sm">{solicitud.paciente}</span>
-                                                {isTomadas && (
-                                                    <CheckCircle2 className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" title="Exámenes completados" />
-                                                )}
                                             </div>
                                             <div className="col-span-1 text-sm font-medium text-gray-700">
                                                 {solicitud.edad} años
@@ -644,10 +653,12 @@ const ExamenesTable = () => {
                                             <div className="col-span-1 text-sm font-medium text-blue-800">
                                                 {solicitud.folio}
                                             </div>
-                                            <div className="col-span-1 text-sm">
+                                            <div className="col-span-2 text-sm">
                                                 <div className="flex items-center">
                                                     <MapPin className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0" />
-                                                    <span className="truncate">{solicitud.cama}</span>
+                                                    <span className="text-xs leading-tight" title={solicitud.cama}>
+                                                        {solicitud.cama}
+                                                    </span>
                                                 </div>
                                             </div>
                                             <div className="col-span-2 text-sm text-gray-600">
@@ -672,11 +683,15 @@ const ExamenesTable = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="col-span-2 text-sm">{solicitud.fechaSolicitudVista || new Date(solicitud.fechaSolicitud).toLocaleDateString()}</div>
+                                            <div className="col-span-2 text-sm">
+                                                {formatearFecha(solicitud.fechaSolicitud)}
+                                            </div>
                                             {/* Fecha Tomado - 2 columnas - solo para tomadas */}
                                             {isTomadas && (
                                                 <div className="col-span-2 text-sm">
-                                                    {solicitud.fechaTomado || solicitud.FechaTomado || 'No disponible'}
+                                                    {solicitud.fechaTomado ? formatearFecha(solicitud.fechaTomado) :
+                                                        solicitud.FechaTomado ? formatearFecha(solicitud.FechaTomado) :
+                                                            'No disponible'}
                                                 </div>
                                             )}
                                             <div className="col-span-3 text-xs text-gray-600">

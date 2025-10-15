@@ -5,27 +5,34 @@ class SolicitudesService {
 
     // Métodos para la API DINAMICA (consultas)
     async makeDinamicaRequest(endpoint, options = {}) {
-        const url = `${API_CONFIG.DINAMICA_API.BASE_URL}${endpoint}`;
+        // En desarrollo usar proxy de Vite, en producción usar URL directa
+        const baseUrl = import.meta.env.DEV
+            ? '' // Vite proxy manejará automáticamente /hcnSolExa
+            : 'http://192.168.16.160:8002';
+
+        const url = `${baseUrl}${endpoint}`;
 
         const defaultOptions = {
             headers: {
                 'Content-Type': 'application/json',
-                // Agregar headers de autenticación para API dinamica si es necesario
-                //'Authorization': `Bearer ${localStorage.getItem('external_token')}`,
+                'accept': '*/*'
             },
             ...options
         };
 
         try {
+            //console.log('Haciendo request a:', url);
             const response = await fetch(url, defaultOptions);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            //console.log('Datos recibidos:', data.length || 'objeto');
+            return data;
         } catch (error) {
-            console.error('Error en petición a API dinamica:', error);
+            console.error('❌ Error en petición a API dinamica:', error);
             throw error;
         }
     }
@@ -39,7 +46,7 @@ class SolicitudesService {
         let hasMoreData = true;
         let totalPagesFound = null;
 
-        console.log(`📄 Iniciando consulta paginada para ${endpoint}`);
+        //console.log(`Iniciando consulta paginada para ${endpoint}`);
 
         while (hasMoreData && currentPage < maxPages) {
             try {
@@ -76,7 +83,7 @@ class SolicitudesService {
             }
         }
 
-        console.log(`Total obtenido de ${endpoint}: ${allData.length} registros${totalPagesFound ? ` de ${totalPagesFound} páginas` : ''}`);
+        //console.log(`Total obtenido de ${endpoint}: ${allData.length} registros${totalPagesFound ? ` de ${totalPagesFound} páginas` : ''}`);
         return allData;
     }
 
