@@ -1,6 +1,7 @@
 // hook/useSolicitudes.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ExamenesTomadosService from '../Services/ExamenesTomadosService';
+import SolicitudesService from '../Services/SolicitudesService';
 
 export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pollingInterval = null) => {
     const [solicitudesData, setSolicitudesData] = useState({
@@ -13,6 +14,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
     //estado para el polling
     const [isPollingActive, setIsPollingActive] = useState(false);
     const pollingRef = useRef(null);
+    const [examenesCache, setExamenesCache] = useState({});
 
 
     // Paginación
@@ -24,47 +26,277 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
     const itemsPerPage = 5;
 
     // DATOS DE PRUEBA
-    const datosPrueba = [
-        // Urgentes
-        { IdePaciente: "25268415", fechaSolicitud: "2025-10-10T08:30:00", NomPaciente: "OLIVA PUNGO", Edad: 45, Ingreso: "5805058", Folio: "2299", Areasolicitante: "LAB001 - LABORATORIO CLÍNICO", Cama: "320A", NomCama: "MEDICO QUIRURGICAS 320A", Prioridad: "Urgente", CodServicio: "879111", NomServicio: "TOMOGRAFIA COMPUTADA DE CRANEO SIN CONTRASTE", Observaciones: "Paciente con sospecha de ACV" },
-        { IdePaciente: "25268415", fechaSolicitud: "2025-10-11T08:30:00", NomPaciente: "OLIVA PUNGO", Edad: 45, Ingreso: "5805058", Folio: "2299", Areasolicitante: "LAB001 - LABORATORIO CLÍNICO", Cama: "320A", NomCama: "MEDICO QUIRURGICAS 320A", Prioridad: "Urgente", CodServicio: "871121", NomServicio: "RADIOGRAFIA DE TORAX (P.A O A.P. Y LATERAL)", Observaciones: "Control post operatorio" },
-        { IdePaciente: "9876543", fechaSolicitud: "2025-10-14¿2T08:30:00", NomPaciente: "CARLOS RIVERA", Edad: 32, Ingreso: "5798017", Folio: "2278", Areasolicitante: "URG001 - URGENCIAS", Cama: "100A", NomCama: "URGENCIAS 100A", Prioridad: "Muy Urgente", CodServicio: "903813", NomServicio: "POTASIO EN SUERO U OTROS FLUIDOS", Observaciones: "Emergencia cardiológica" },
-        { IdePaciente: "1111111", fechaSolicitud: "2025-10-13T08:30:00", NomPaciente: "ANA MARTÍN", Edad: 67, Ingreso: "5813344", Folio: "623", Areasolicitante: "UCI001 - UCI", Cama: "UCI01", NomCama: "UCI CAMA 01", Prioridad: "Urgente", CodServicio: "906913", NomServicio: "HEMOGRAMA IV (HEMOGLOBINA HEMATOCRITO RECUENTO Y FORMULA)", Observaciones: "Seguimiento hematológico urgente" },
-        { IdePaciente: "2222222", fechaSolicitud: "2025-10-14T08:30:00", NomPaciente: "LUIS GARCÍA", Edad: 54, Ingreso: "5821456", Folio: "789", Areasolicitante: "EMR001 - EMERGENCIAS", Cama: "EMR05", NomCama: "EMERGENCIAS 05", Prioridad: "Urgente", CodServicio: "903895", NomServicio: "PROTEINA C REACTIVA ALTA PRECISION AUTOMATIZADA", Observaciones: "Proceso infeccioso severo" },
-        { IdePaciente: "3333333", fechaSolicitud: "2025-10-09T08:30:00", NomPaciente: "CARMEN LÓPEZ", Edad: 29, Ingreso: "5834567", Folio: "456", Areasolicitante: "MAT001 - MATERNIDAD", Cama: "MAT10", NomCama: "MATERNIDAD 10", Prioridad: "Urgente", CodServicio: "903854", NomServicio: "CALCIO SEMIAUTOMATIZADO", Observaciones: "Pre-eclampsia" },
-        { IdePaciente: "4444444", fechaSolicitud: "2025-10-08T08:30:00", NomPaciente: "JOSÉ RODRÍGUEZ", Edad: 71, Ingreso: "5845678", Folio: "321", Areasolicitante: "CAR001 - CARDIOLOGÍA", Cama: "CAR03", NomCama: "CARDIOLOGÍA 03", Prioridad: "Muy Urgente", CodServicio: "903810", NomServicio: "CLORO", Observaciones: "Arritmia severa" },
-        { IdePaciente: "5555555", fechaSolicitud: "2025-10-07T08:30:00", NomPaciente: "ELENA MORALES", Edad: 38, Ingreso: "5856789", Folio: "987", Areasolicitante: "NEU001 - NEUROLOGÍA", Cama: "NEU02", NomCama: "NEUROLOGÍA 02", Prioridad: "Urgente", CodServicio: "903867", NomServicio: "FOSFORO EN SUERO U OTROS FLUIDOS", Observaciones: "Alteración de conciencia" },
-        { IdePaciente: "6666666", fechaSolicitud: "2025-10-06T08:30:00", NomPaciente: "MIGUEL SANTOS", Edad: 42, Ingreso: "5867890", Folio: "654", Areasolicitante: "CIR001 - CIRUGÍA", Cama: "CIR08", NomCama: "CIRUGÍA 08", Prioridad: "Urgente", CodServicio: "903866", NomServicio: "TRANSAMINASA GLUTAMICO OXALACETICA (AST)", Observaciones: "Post operatorio inmediato" },
-        { IdePaciente: "7777777", fechaSolicitud: "2025-10-05T08:30:00", NomPaciente: "PATRICIA DÍAZ", Edad: 56, Ingreso: "5878901", Folio: "147", Areasolicitante: "GAS001 - GASTROENTEROLOGÍA", Cama: "GAS05", NomCama: "GASTROENTEROLOGÍA 05", Prioridad: "Urgente", CodServicio: "902045", NomServicio: "TIEMPO DE PROTROMBINA (TP)", Observaciones: "Sangrado digestivo" },
-        { IdePaciente: "8888888", fechaSolicitud: "2025-10-04T08:30:00", NomPaciente: "FERNANDO RUIZ", Edad: 63, Ingreso: "5889012", Folio: "258", Areasolicitante: "PUL001 - NEUMOLOGÍA", Cama: "PUL03", NomCama: "NEUMOLOGÍA 03", Prioridad: "Urgente", CodServicio: "903828", NomServicio: "DESHIDROGENASA LACTICA", Observaciones: "Insuficiencia respiratoria" },
-        { IdePaciente: "8888888", fechaSolicitud: "2025-10-03T08:30:00", NomPaciente: "FERNANDO RUIZ", Edad: 63, Ingreso: "5889012", Folio: "258", Areasolicitante: "PUL001 - NEUMOLOGÍA", Cama: "PUL03", NomCama: "NEUMOLOGÍA 03", Prioridad: "Urgente", CodServicio: "903866", NomServicio: "TRANSAMINASA GLUTAMICO OXALACETICA (AST)", Observaciones: "Insuficiencia respiratoria" },
-        { IdePaciente: "8888888", fechaSolicitud: "2025-10-02T08:30:00", NomPaciente: "FERNANDO RUIZ", Edad: 63, Ingreso: "5889012", Folio: "258", Areasolicitante: "PUL001 - NEUMOLOGÍA", Cama: "PUL03", NomCama: "NEUMOLOGÍA 03", Prioridad: "Urgente", CodServicio: "903867", NomServicio: "FOSFORO EN SUERO U OTROS FLUIDOS", Observaciones: "Insuficiencia respiratoria" },
+    const datosPruebaResumenPacientes = {
+        urgentes: [
+            {
+                ingreso: 5805058,
+                fechaSolicitud: "2025-10-10T08:30:00.000",
+                nomPaciente: "OLIVA PUNGO",
+                areaSolicitante: "LAB001 - LABORATORIO CLÍNICO",
+                idePaciente: "25268415",
+                cantidadExamenes: 5,
+                edad: 45,
+                folio: 2299,
+                cama: "MEDICO QUIRURGICAS 320A"
+            },
+            {
+                ingreso: 5798017,
+                fechaSolicitud: "2025-10-14T08:30:00.000",
+                nomPaciente: "CARLOS RIVERA",
+                areaSolicitante: "URG001 - URGENCIAS",
+                idePaciente: "9876543",
+                cantidadExamenes: 3,
+                edad: 32,
+                folio: 2278,
+                cama: "URGENCIAS 100A"
+            },
+            {
+                ingreso: 5813344,
+                fechaSolicitud: "2025-10-13T08:30:00.000",
+                nomPaciente: "ANA MARTÍN",
+                areaSolicitante: "UCI001 - UCI",
+                idePaciente: "1111111",
+                cantidadExamenes: 7,
+                edad: 67,
+                folio: 623,
+                cama: "UCI CAMA 01"
+            },
+            {
+                ingreso: 5889012,
+                fechaSolicitud: "2025-10-04T08:30:00.000",
+                nomPaciente: "FERNANDO RUIZ",
+                areaSolicitante: "PUL001 - NEUMOLOGÍA",
+                idePaciente: "8888888",
+                cantidadExamenes: 8,
+                edad: 63,
+                folio: 258,
+                cama: "NEUMOLOGÍA 03"
+            }
+        ],
+        prioritarios: [
+            {
+                ingreso: 5813344,
+                fechaSolicitud: "2025-10-01T08:30:00.000",
+                nomPaciente: "ANTONIO DÍAZ",
+                areaSolicitante: "PED001 - PEDIATRÍA",
+                idePaciente: "4321772",
+                cantidadExamenes: 3,
+                edad: 34,
+                folio: 623,
+                cama: "CAMA GENERAL MEDICAS 2"
+            },
+            {
+                ingreso: 5890123,
+                fechaSolicitud: "2025-10-13T08:30:00.000",
+                nomPaciente: "LUCÍA HERRERA",
+                areaSolicitante: "GIN001 - GINECOLOGÍA",
+                idePaciente: "1010101",
+                cantidadExamenes: 2,
+                edad: 28,
+                folio: 369,
+                cama: "GINECOLOGÍA 07"
+            }
+        ],
+        rutinarios: [
+            {
+                ingreso: 5956789,
+                fechaSolicitud: "2025-10-07T08:30:00.000",
+                nomPaciente: "MARÍA LÓPEZ",
+                areaSolicitante: "MED001 - MEDICINA INTERNA",
+                idePaciente: "1234567",
+                cantidadExamenes: 2,
+                edad: 41,
+                folio: 468,
+                cama: "MEDICINA GENERAL 201B"
+            },
+            {
+                ingreso: 5967890,
+                fechaSolicitud: "2025-10-06T08:30:00.000",
+                nomPaciente: "DIEGO CAMPOS",
+                areaSolicitante: "MED002 - MEDICINA INTERNA",
+                idePaciente: "2020202",
+                cantidadExamenes: 3,
+                edad: 39,
+                folio: 579,
+                cama: "MEDICINA 12"
+            }
+        ]
+    };
 
-        // Prioritarias
-        { IdePaciente: "4321772", fechaSolicitud: "2025-10-01T08:30:00", NomPaciente: "ANTONIO DÍAZ", Edad: 34, Ingreso: "5813344", Folio: "623", Areasolicitante: "PED001 - PEDIATRÍA", Cama: "415A", NomCama: "CAMA GENERAL MEDICAS 2", Prioridad: "Prioritaria", CodServicio: "903895", NomServicio: "PROTEINA C REACTIVA ALTA PRECISION AUTOMATIZADA", Observaciones: "Control inflamatorio" },
-        { IdePaciente: "1010101", fechaSolicitud: "2025-10-13T08:30:00", NomPaciente: "LUCÍA HERRERA", Edad: 28, Ingreso: "5890123", Folio: "369", Areasolicitante: "GIN001 - GINECOLOGÍA", Cama: "GIN07", NomCama: "GINECOLOGÍA 07", Prioridad: "Prioritaria", CodServicio: "906913", NomServicio: "HEMOGRAMA IV", Observaciones: "Control pre-quirúrgico" },
-        { IdePaciente: "1212121", fechaSolicitud: "2025-10-12T08:30:00", NomPaciente: "RICARDO VEGA", Edad: 49, Ingreso: "5901234", Folio: "741", Areasolicitante: "ORT001 - ORTOPEDIA", Cama: "ORT04", NomCama: "ORTOPEDIA 04", Prioridad: "Prioritaria", CodServicio: "903854", NomServicio: "CALCIO SEMIAUTOMATIZADO", Observaciones: "Fractura múltiple" },
-        { IdePaciente: "1313131", fechaSolicitud: "2025-10-11T08:30:00", NomPaciente: "SOFIA CASTRO", Edad: 61, Ingreso: "5912345", Folio: "852", Areasolicitante: "END001 - ENDOCRINOLOGÍA", Cama: "END02", NomCama: "ENDOCRINOLOGÍA 02", Prioridad: "Prioritaria", CodServicio: "903835", NomServicio: "MAGNESIO EN SUERO U OTROS FLUIDOS", Observaciones: "Diabetes descompensada" },
-        { IdePaciente: "1414141", fechaSolicitud: "2025-10-10T08:30:00", NomPaciente: "GABRIEL MORA", Edad: 47, Ingreso: "5923456", Folio: "963", Areasolicitante: "URO001 - UROLOGÍA", Cama: "URO06", NomCama: "UROLOGÍA 06", Prioridad: "Prioritaria", CodServicio: "903810", NomServicio: "CLORO", Observaciones: "Litiasis renal" },
-        { IdePaciente: "1515151", fechaSolicitud: "2025-10-09T08:30:00", NomPaciente: "NATALIA PEÑA", Edad: 35, Ingreso: "5934567", Folio: "159", Areasolicitante: "HEM001 - HEMATOLOGÍA", Cama: "HEM01", NomCama: "HEMATOLOGÍA 01", Prioridad: "Prioritaria", CodServicio: "906913", NomServicio: "HEMOGRAMA IV", Observaciones: "Anemia severa" },
-        { IdePaciente: "1616161", fechaSolicitud: "2025-10-08T08:30:00", NomPaciente: "ALBERTO SILVA", Edad: 52, Ingreso: "5945678", Folio: "357", Areasolicitante: "NEF001 - NEFROLOGÍA", Cama: "NEF03", NomCama: "NEFROLOGÍA 03", Prioridad: "Prioritaria", CodServicio: "903813", NomServicio: "POTASIO EN SUERO U OTROS FLUIDOS", Observaciones: "Insuficiencia renal" },
+    // Datos de exámenes específicos para cada paciente (simulan la segunda consulta)
+    const examenesDetallados = {
+        "25268415": [
+            { fechaSolicitud: "2025-10-10T08:30:00.000", codExamen: "879111", nomExamen: "TOMOGRAFIA COMPUTADA DE CRANEO SIN CONTRASTE" },
+            { fechaSolicitud: "2025-10-11T08:30:00.000", codExamen: "871121", nomExamen: "RADIOGRAFIA DE TORAX (P.A O A.P. Y LATERAL)" },
+            { fechaSolicitud: "2025-10-10T08:30:00.000", codExamen: "903813", nomExamen: "POTASIO EN SUERO U OTROS FLUIDOS" },
+            { fechaSolicitud: "2025-10-10T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV (HEMOGLOBINA HEMATOCRITO RECUENTO Y FORMULA)" },
+            { fechaSolicitud: "2025-10-10T08:30:00.000", codExamen: "903895", nomExamen: "PROTEINA C REACTIVA ALTA PRECISION AUTOMATIZADA" }
+        ],
+        "9876543": [
+            { fechaSolicitud: "2025-10-14T08:30:00.000", codExamen: "903813", nomExamen: "POTASIO EN SUERO U OTROS FLUIDOS" },
+            { fechaSolicitud: "2025-10-14T08:30:00.000", codExamen: "903854", nomExamen: "CALCIO SEMIAUTOMATIZADO" },
+            { fechaSolicitud: "2025-10-14T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV" }
+        ],
+        "1111111": [
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV (HEMOGLOBINA HEMATOCRITO RECUENTO Y FORMULA)" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "903895", nomExamen: "PROTEINA C REACTIVA ALTA PRECISION AUTOMATIZADA" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "903854", nomExamen: "CALCIO SEMIAUTOMATIZADO" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "903810", nomExamen: "CLORO" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "903867", nomExamen: "FOSFORO EN SUERO U OTROS FLUIDOS" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "903866", nomExamen: "TRANSAMINASA GLUTAMICO OXALACETICA (AST)" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "902045", nomExamen: "TIEMPO DE PROTROMBINA (TP)" }
+        ],
+        "8888888": [
+            { fechaSolicitud: "2025-10-04T08:30:00.000", codExamen: "903828", nomExamen: "DESHIDROGENASA LACTICA" },
+            { fechaSolicitud: "2025-10-03T08:30:00.000", codExamen: "903866", nomExamen: "TRANSAMINASA GLUTAMICO OXALACETICA (AST)" },
+            { fechaSolicitud: "2025-10-02T08:30:00.000", codExamen: "903867", nomExamen: "FOSFORO EN SUERO U OTROS FLUIDOS" },
+            { fechaSolicitud: "2025-10-04T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV" },
+            { fechaSolicitud: "2025-10-04T08:30:00.000", codExamen: "903854", nomExamen: "CALCIO SEMIAUTOMATIZADO" },
+            { fechaSolicitud: "2025-10-04T08:30:00.000", codExamen: "903813", nomExamen: "POTASIO EN SUERO U OTROS FLUIDOS" },
+            { fechaSolicitud: "2025-10-04T08:30:00.000", codExamen: "903895", nomExamen: "PROTEINA C REACTIVA ALTA PRECISION AUTOMATIZADA" },
+            { fechaSolicitud: "2025-10-04T08:30:00.000", codExamen: "902045", nomExamen: "TIEMPO DE PROTROMBINA (TP)" }
+        ],
+        "4321772": [
+            { fechaSolicitud: "2025-10-01T08:30:00.000", codExamen: "903895", nomExamen: "PROTEINA C REACTIVA ALTA PRECISION AUTOMATIZADA" },
+            { fechaSolicitud: "2025-10-01T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV" },
+            { fechaSolicitud: "2025-10-01T08:30:00.000", codExamen: "903854", nomExamen: "CALCIO SEMIAUTOMATIZADO" }
+        ],
+        "1010101": [
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV" },
+            { fechaSolicitud: "2025-10-13T08:30:00.000", codExamen: "902045", nomExamen: "TIEMPO DE PROTROMBINA (TP)" }
+        ],
+        "1234567": [
+            { fechaSolicitud: "2025-10-07T08:30:00.000", codExamen: "903854", nomExamen: "CALCIO SEMIAUTOMATIZADO" },
+            { fechaSolicitud: "2025-10-07T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV" }
+        ],
+        "2020202": [
+            { fechaSolicitud: "2025-10-06T08:30:00.000", codExamen: "903835", nomExamen: "MAGNESIO EN SUERO U OTROS FLUIDOS" },
+            { fechaSolicitud: "2025-10-06T08:30:00.000", codExamen: "903854", nomExamen: "CALCIO SEMIAUTOMATIZADO" },
+            { fechaSolicitud: "2025-10-06T08:30:00.000", codExamen: "906913", nomExamen: "HEMOGRAMA IV" }
+        ]
+    };
 
-        // Rutinarias
-        { IdePaciente: "1234567", fechaSolicitud: "2025-10-07T08:30:00", NomPaciente: "MARÍA LÓPEZ", Edad: 41, Ingreso: "5956789", Folio: "468", Areasolicitante: "MED001 - MEDICINA INTERNA", Cama: "201B", NomCama: "MEDICINA GENERAL 201B", Prioridad: "Rutinario", CodServicio: "903854", NomServicio: "CALCIO SEMIAUTOMATIZADO", Observaciones: "Control rutinario" },
-        { IdePaciente: "2020202", fechaSolicitud: "2025-10-06T08:30:00", NomPaciente: "DIEGO CAMPOS", Edad: 39, Ingreso: "5967890", Folio: "579", Areasolicitante: "MED002 - MEDICINA INTERNA", Cama: "MED12", NomCama: "MEDICINA 12", Prioridad: "Rutinario", CodServicio: "903835", NomServicio: "MAGNESIO EN SUERO U OTROS FLUIDOS", Observaciones: "Chequeo anual" },
-        { IdePaciente: "2121212", fechaSolicitud: "2025-10-05T08:30:00", NomPaciente: "VALERIA ROMERO", Edad: 33, Ingreso: "5978901", Folio: "680", Areasolicitante: "DER001 - DERMATOLOGÍA", Cama: "DER05", NomCama: "DERMATOLOGÍA 05", Prioridad: "Electivo", CodServicio: "906913", NomServicio: "HEMOGRAMA IV", Observaciones: "Pre-procedimiento" },
-        { IdePaciente: "2222323", fechaSolicitud: "2025-10-04T08:30:00", NomPaciente: "ANDRÉS JIMÉNEZ", Edad: 58, Ingreso: "5989012", Folio: "791", Areasolicitante: "PSI001 - PSIQUIATRÍA", Cama: "PSI08", NomCama: "PSIQUIATRÍA 08", Prioridad: "Control", CodServicio: "903866", NomServicio: "TRANSAMINASA GLUTAMICO OXALACETICA", Observaciones: "Control medicación" },
-        { IdePaciente: "2424242", fechaSolicitud: "2025-10-03T08:30:00", NomPaciente: "CRISTINA VARGAS", Edad: 44, Ingreso: "5990123", Folio: "802", Areasolicitante: "REU001 - REUMATOLOGÍA", Cama: "REU02", NomCama: "REUMATOLOGÍA 02", Prioridad: "Rutinario", CodServicio: "903895", NomServicio: "PROTEINA C REACTIVA ALTA PRECISION", Observaciones: "Seguimiento artritis" },
-        { IdePaciente: "2525252", fechaSolicitud: "2025-10-02T08:30:00", NomPaciente: "MANUEL TORRES", Edad: 50, Ingreso: "5901234", Folio: "913", Areasolicitante: "OFT001 - OFTALMOLOGÍA", Cama: "OFT04", NomCama: "OFTALMOLOGÍA 04", Prioridad: "Electivo", CodServicio: "903854", NomServicio: "CALCIO SEMIAUTOMATIZADO", Observaciones: "Pre-cirugía de cataratas" },
-        { IdePaciente: "2626262", fechaSolicitud: "2025-10-01T08:30:00", NomPaciente: "ROSARIO MENDEZ", Edad: 65, Ingreso: "5912345", Folio: "024", Areasolicitante: "GER001 - GERIATRÍA", Cama: "GER06", NomCama: "GERIATRÍA 06", Prioridad: "Rutinario", CodServicio: "902045", NomServicio: "TIEMPO DE PROTROMBINA (TP)", Observaciones: "Control anticoagulación" },
-        { IdePaciente: "2727272", fechaSolicitud: "2025-10-14T08:30:00", NomPaciente: "ESTEBAN AGUIRRE", Edad: 37, Ingreso: "5923456", Folio: "135", Areasolicitante: "OTO001 - OTORRINOLARINGOLOGÍA", Cama: "OTO03", NomCama: "OTORRINO 03", Prioridad: "Electivo", CodServicio: "906913", NomServicio: "HEMOGRAMA IV", Observaciones: "Pre-amigdalectomía" }
-    ];
+    // Función para convertir datos de API dinamica
+    const convertirDatosAPIaFormato = (datosAPI, prioridadTipo) => {
+        if (!Array.isArray(datosAPI)) return [];
+
+        return datosAPI.map(item => ({
+            id: item.idePaciente,
+            paciente: item.nomPaciente,
+            edad: item.edad,
+            historia: item.idePaciente,
+            ingreso: item.ingreso,
+            folio: item.folio,
+            cama: item.cama,
+            nombreCama: item.cama,
+            fechaSolicitud: item.fechaSolicitud,
+            areaSolicitante: item.areaSolicitante,
+            estado: 'Actual',
+            prioridad: prioridadTipo,
+            cantidadExamenes: item.cantidadExamenes,
+            examenes: [], // Se llenarán al expandir
+            examenesDetallados: false
+        }));
+    };
+
+    // función para cargar exámenes detallados
+    const cargarExamenesDetallados = async (idePaciente, examenesTomados = []) => {
+        try {
+            // Verificar si ya están en cache
+            if (examenesCache[idePaciente]) {
+                const examenesCacheados = examenesCache[idePaciente];
+
+                // Aplicar filtro de tomados a los exámenes cacheados
+                const examenesDelPaciente = examenesTomados.filter(tomado => tomado.historia === idePaciente);
+
+                return examenesCacheados.map(examen => ({
+                    nombre: examen,
+                    tomado: examenesDelPaciente.some(tomado => tomado.nomServicio === examen)
+                }));
+            }
+
+            //console.log(`Cargando exámenes detallados para paciente: ${idePaciente}`);
+
+            let examenes = [];
+
+            if (!usarDatosPrueba) {
+                try {
+                    examenes = await SolicitudesService.getExamenesPaciente(idePaciente);
+                } catch (error) {
+                    console.warn('Error con API, usando datos de prueba:', error);
+                    examenes = examenesDetallados[idePaciente] || [];
+                }
+            } else {
+                examenes = examenesDetallados[idePaciente] || [];
+            }
+
+            // Convertir formato de exámenes con información de estado
+            const examenesFormateados = examenes.map(examen => examen.nomExamen);
+
+            // Aplicar filtro de tomados
+            const examenesDelPaciente = examenesTomados.filter(tomado => tomado.historia === idePaciente);
+
+            const examenesConEstado = examenesFormateados.map(examen => ({
+                nombre: examen,
+                tomado: examenesDelPaciente.some(tomado => tomado.nomServicio === examen)
+            }));
+
+            // Guardar en cache
+            setExamenesCache(prev => ({
+                ...prev,
+                [idePaciente]: examenesFormateados
+            }));
+
+            return examenesConEstado;
+        } catch (error) {
+            console.error(`Error cargando exámenes para paciente ${idePaciente}:`, error);
+            return [{ nombre: `Error cargando exámenes (${error.message})`, tomado: false }];
+        }
+    };
+
+    // Función para expandir paciente y cargar sus exámenes
+    const expandirPaciente = async (paciente, examenesTomados = []) => {
+        if (!paciente.examenesDetallados && paciente.cantidadExamenes > 0) {
+            const examenesConEstado = await cargarExamenesDetallados(paciente.historia, examenesTomados);
+
+            // Actualizar el paciente con los exámenes detallados
+            setSolicitudesData(prevData => {
+                const nuevaData = { ...prevData };
+
+                // Buscar y actualizar el paciente en la categoría correspondiente
+                ['urgentes', 'prioritario', 'rutinario'].forEach(categoria => {
+                    const index = nuevaData[categoria].findIndex(p => p.id === paciente.id);
+                    if (index !== -1) {
+                        // Separar exámenes pendientes y tomados
+                        const examenesPendientes = examenesConEstado
+                            .filter(examen => !examen.tomado)
+                            .map(examen => examen.nombre);
+
+                        const examenesTomados = examenesConEstado
+                            .filter(examen => examen.tomado)
+                            .map(examen => examen.nombre);
+
+                        nuevaData[categoria][index] = {
+                            ...nuevaData[categoria][index],
+                            examenes: examenesPendientes, // Solo pendientes para lógica de marcado
+                            examenesConEstado: examenesConEstado, // Todos con estado para mostrar
+                            cantidadPendientes: examenesPendientes.length,
+                            cantidadTomados: examenesTomados.length,
+                            examenesDetallados: true
+                        };
+                    }
+                });
+
+                return nuevaData;
+            });
+        }
+    };
 
     // FUNCIÓN: Filtrar exámenes que NO estén en tomados
     const filtrarExamenesNoTomados = (solicitudesOriginales, examenesTomados) => {
-        console.log('🔍 Filtrando exámenes no tomados...');
-        console.log('📥 Solicitudes originales:', solicitudesOriginales.length);
-        console.log('📋 Exámenes tomados:', examenesTomados.length);
+        //console.log('Filtrando exámenes no tomados...');
+        //console.log('Solicitudes originales:', solicitudesOriginales.length);
+        //console.log('Exámenes tomados:', examenesTomados.length);
 
         const examenesFiltrados = solicitudesOriginales.filter(solicitud => {
             // Buscar si este examen específico ya fue tomado
@@ -79,36 +311,67 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
             const incluir = !yaExiste;
 
             if (yaExiste) {
-                console.log(`⏭️ Examen ya tomado (omitiendo): ${solicitud.NomPaciente} - ${solicitud.NomServicio}`);
+                //console.log(`Examen ya tomado (omitiendo): ${solicitud.NomPaciente} - ${solicitud.NomServicio}`);
             }
 
             return incluir;
         });
 
-        console.log('📤 Solicitudes filtradas:', examenesFiltrados.length);
+        //console.log('Solicitudes filtradas:', examenesFiltrados.length);
         return examenesFiltrados;
     };
 
     // Función para convertir exámenes tomados del backend a formato vista
     const convertirExamenesTomadosAVista = (examenesTomados) => {
-        return examenesTomados.map(examen => ({
-            IdePaciente: examen.historia,
-            NomPaciente: examen.nomPaciente,
-            Edad: examen.edad,
-            Ingreso: examen.numeroIngreso,
-            Folio: examen.numeroFolio,
-            Areasolicitante: examen.areaSolicitante,
-            Cama: examen.cama,
-            NomCama: examen.nomCama,
-            Prioridad: examen.prioridad,
-            CodServicio: examen.codServicio,
-            NomServicio: examen.nomServicio,
-            Observaciones: examen.observaciones,
-            fechaSolicitud: examen.fechaSolicitud,
-            FechaSolicitud: examen.fechaSolicitud,
-            fechaTomado: examen.fechaTomado,
-            FechaTomado: examen.fechaTomado
-        }));
+        // Agrupar por paciente
+        const pacientesMap = {};
+
+        examenesTomados.forEach(examen => {
+            const key = examen.historia;
+            if (!pacientesMap[key]) {
+                pacientesMap[key] = {
+                    id: examen.historia,
+                    paciente: examen.nomPaciente,
+                    edad: examen.edad,
+                    historia: examen.historia,
+                    ingreso: examen.numeroIngreso,
+                    folio: examen.numeroFolio,
+                    cama: examen.cama,
+                    nombreCama: examen.nomCama,
+                    fechaSolicitud: examen.fechaSolicitud,
+                    fechaTomado: examen.fechaTomado,
+                    FechaTomado: examen.fechaTomado,
+                    areaSolicitante: examen.areaSolicitante,
+                    estado: 'Completado',
+                    prioridad: examen.prioridad,
+                    observaciones: examen.observaciones || '',
+                    examenes: [],
+                    cantidadExamenes: 0,
+                    examenesDetallados: true
+                };
+            }
+            pacientesMap[key].examenes.push(examen.nomServicio);
+            pacientesMap[key].cantidadExamenes = pacientesMap[key].examenes.length;
+        });
+
+        const pacientesAgrupados = Object.values(pacientesMap);
+
+        // Organizar por prioridad
+        return pacientesAgrupados.reduce((acc, paciente) => {
+            const prioridad = paciente.prioridad?.toLowerCase();
+            let categoria;
+            if (prioridad?.includes('urgente') || prioridad === 'muy urgente') {
+                categoria = 'urgentes';
+            } else if (prioridad === 'prioritaria') {
+                categoria = 'prioritario';
+            } else {
+                categoria = 'rutinario';
+            }
+
+            if (!acc[categoria]) acc[categoria] = [];
+            acc[categoria].push(paciente);
+            return acc;
+        }, { urgentes: [], prioritario: [], rutinario: [] });
     };
 
     // Función principal para cargar solicitudes
@@ -119,44 +382,225 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
 
             await new Promise(resolve => setTimeout(resolve, 800));
 
-            let dataFiltrada = [];
+            let dataFiltrada = { urgentes: [], prioritario: [], rutinario: [] };
 
             // SIEMPRE obtener exámenes tomados para filtrar
             let examenesTomadosActuales = [];
+
             try {
                 examenesTomadosActuales = await ExamenesTomadosService.getExamenesTomados();
             } catch (error) {
                 console.warn('⚠️ Error obteniendo exámenes tomados para filtrado:', error);
-                // Continuar con array vacío si falla
             }
 
             if (filtro === 'tomadas') {
-                console.log('📋 Cargando exámenes tomados desde backend...');
+                //console.log('Cargando exámenes tomados desde backend...');
                 dataFiltrada = convertirExamenesTomadosAVista(examenesTomadosActuales);
-
             } else {
-                // Para 'actuales' - usar datos de prueba Y filtrar los ya tomados
-                console.log('🧪 Usando datos de prueba para actuales');
-                console.log('🔍 Filtrando exámenes ya tomados...');
+                // Para 'actuales' con nueva lógica de filtrado individual
+                if (!usarDatosPrueba) {
+                    //console.log('Cargando datos desde API externa dividida...');
+                    try {
+                        const datosPorPrioridad = await SolicitudesService.getTodosLosPacientesPorPrioridad();
 
-                // APLICAR FILTRO: quitar exámenes que ya están tomados
-                const datosSinTomados = filtrarExamenesNoTomados(datosPrueba, examenesTomadosActuales);
-                dataFiltrada = [...datosSinTomados];
+                        // Convertir datos de resumen de pacientes
+                        const urgentesAPI = convertirResumenPacientes(datosPorPrioridad.urgentes, 'Urgente');
+                        const prioritariosAPI = convertirResumenPacientes(datosPorPrioridad.prioritarios, 'Prioritaria');
+                        const rutinariosAPI = convertirResumenPacientes(datosPorPrioridad.rutinarios, 'Rutinario');
+
+                        //console.log('Cargando exámenes detallados y aplicando filtros...');
+
+                        // URGENTES: Cargar exámenes detallados y filtrar individualmente
+                        const urgentesConExamenes = await Promise.all(
+                            urgentesAPI.map(async paciente => {
+                                const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                                return {
+                                    ...paciente,
+                                    examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                    examenesConEstado: examenes,
+                                    examenesDetallados: true,
+                                    cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                    cantidadTomados: examenes.filter(e => e.tomado).length,
+                                    tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                                };
+                            })
+                        );
+
+                        // ⭐ PRIORITARIOS: Cargar exámenes detallados y filtrar individualmente
+                        const prioritariosConExamenes = await Promise.all(
+                            prioritariosAPI.map(async paciente => {
+                                const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                                return {
+                                    ...paciente,
+                                    examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                    examenesConEstado: examenes,
+                                    examenesDetallados: true,
+                                    cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                    cantidadTomados: examenes.filter(e => e.tomado).length,
+                                    tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                                };
+                            })
+                        );
+
+                        // ⭐ RUTINARIOS: Cargar exámenes detallados y filtrar individualmente
+                        const rutinariosConExamenes = await Promise.all(
+                            rutinariosAPI.map(async paciente => {
+                                const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                                return {
+                                    ...paciente,
+                                    examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                    examenesConEstado: examenes,
+                                    examenesDetallados: true,
+                                    cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                    cantidadTomados: examenes.filter(e => e.tomado).length,
+                                    tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                                };
+                            })
+                        );
+
+                        // Filtrar solo pacientes que tengan exámenes pendientes
+                        dataFiltrada = {
+                            urgentes: urgentesConExamenes.filter(p => p.tieneExamenesPendientes),
+                            prioritario: prioritariosConExamenes.filter(p => p.tieneExamenesPendientes),
+                            rutinario: rutinariosConExamenes.filter(p => p.tieneExamenesPendientes)
+                        };
+
+                        //console.log('Datos cargados desde API externa con filtrado');
+
+                    } catch (apiError) {
+                        console.error('❌ Error cargando desde API externa, usando datos de prueba:', apiError);
+                        // Fallback: usar datos de prueba
+                        const urgentesAPI = convertirResumenPacientes(datosPruebaResumenPacientes.urgentes, 'Urgente');
+                        const prioritariosAPI = convertirResumenPacientes(datosPruebaResumenPacientes.prioritarios, 'Prioritaria');
+                        const rutinariosAPI = convertirResumenPacientes(datosPruebaResumenPacientes.rutinarios, 'Rutinario');
+
+                        // URGENTES: Aplicar filtrado con datos de prueba
+                        const urgentesConExamenes = await Promise.all(
+                            urgentesAPI.map(async paciente => {
+                                const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                                return {
+                                    ...paciente,
+                                    examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                    examenesConEstado: examenes,
+                                    examenesDetallados: true,
+                                    cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                    cantidadTomados: examenes.filter(e => e.tomado).length,
+                                    tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                                };
+                            })
+                        );
+
+                        // ⭐ PRIORITARIOS FALLBACK
+                        const prioritariosConExamenes = await Promise.all(
+                            prioritariosAPI.map(async paciente => {
+                                const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                                return {
+                                    ...paciente,
+                                    examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                    examenesConEstado: examenes,
+                                    examenesDetallados: true,
+                                    cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                    cantidadTomados: examenes.filter(e => e.tomado).length,
+                                    tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                                };
+                            })
+                        );
+
+                        // ⭐ RUTINARIOS FALLBACK
+                        const rutinariosConExamenes = await Promise.all(
+                            rutinariosAPI.map(async paciente => {
+                                const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                                return {
+                                    ...paciente,
+                                    examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                    examenesConEstado: examenes,
+                                    examenesDetallados: true,
+                                    cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                    cantidadTomados: examenes.filter(e => e.tomado).length,
+                                    tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                                };
+                            })
+                        );
+
+                        dataFiltrada = {
+                            urgentes: urgentesConExamenes.filter(p => p.tieneExamenesPendientes),
+                            prioritario: prioritariosConExamenes.filter(p => p.tieneExamenesPendientes),
+                            rutinario: rutinariosConExamenes.filter(p => p.tieneExamenesPendientes)
+                        };
+
+                    }
+                } else {
+                    // Para 'actuales' - usar datos de prueba directamente
+
+                    const urgentesAPI = convertirResumenPacientes(datosPruebaResumenPacientes.urgentes, 'Urgente');
+                    const prioritariosAPI = convertirResumenPacientes(datosPruebaResumenPacientes.prioritarios, 'Prioritaria');
+                    const rutinariosAPI = convertirResumenPacientes(datosPruebaResumenPacientes.rutinarios, 'Rutinario');
+
+
+                    // URGENTES DATOS DE PRUEBA: Cargar exámenes detallados y filtrar
+                    const urgentesConExamenes = await Promise.all(
+                        urgentesAPI.map(async paciente => {
+                            const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                            return {
+                                ...paciente,
+                                examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                examenesConEstado: examenes,
+                                examenesDetallados: true,
+                                cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                cantidadTomados: examenes.filter(e => e.tomado).length,
+                                tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                            };
+                        })
+                    );
+
+                    // PRIORITARIOS DATOS DE PRUEBA
+                    const prioritariosConExamenes = await Promise.all(
+                        prioritariosAPI.map(async paciente => {
+                            const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                            return {
+                                ...paciente,
+                                examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                examenesConEstado: examenes,
+                                examenesDetallados: true,
+                                cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                cantidadTomados: examenes.filter(e => e.tomado).length,
+                                tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                            };
+                        })
+                    );
+
+                    // RUTINARIOS DATOS DE PRUEBA
+                    const rutinariosConExamenes = await Promise.all(
+                        rutinariosAPI.map(async paciente => {
+                            const examenes = await cargarExamenesDetallados(paciente.historia, examenesTomadosActuales);
+                            return {
+                                ...paciente,
+                                examenes: examenes.filter(e => !e.tomado).map(e => e.nombre),
+                                examenesConEstado: examenes,
+                                examenesDetallados: true,
+                                cantidadPendientes: examenes.filter(e => !e.tomado).length,
+                                cantidadTomados: examenes.filter(e => e.tomado).length,
+                                tieneExamenesPendientes: examenes.filter(e => !e.tomado).length > 0
+                            };
+                        })
+                    );
+
+                    dataFiltrada = {
+                        urgentes: urgentesConExamenes.filter(p => p.tieneExamenesPendientes),
+                        prioritario: prioritariosConExamenes.filter(p => p.tieneExamenesPendientes),
+                        rutinario: rutinariosConExamenes.filter(p => p.tieneExamenesPendientes)
+                    };
+                }
             }
 
-            console.log('📊 Datos filtrados finales:', dataFiltrada.length);
+            /* console.log('📊 Datos filtrados finales:', {
+                urgentes: dataFiltrada.urgentes.length,
+                prioritarios: dataFiltrada.prioritario.length,
+                rutinarios: dataFiltrada.rutinario.length,
+                totalPacientes: dataFiltrada.urgentes.length + dataFiltrada.prioritario.length + dataFiltrada.rutinario.length
+            }); */
 
-            if (dataFiltrada.length > 0) {
-                const pacientesAgrupados = agruparPorPaciente(dataFiltrada);
-                const solicitudesOrganizadas = organizarPorPrioridad(pacientesAgrupados);
-                setSolicitudesData(solicitudesOrganizadas);
-            } else {
-                setSolicitudesData({
-                    urgentes: [],
-                    prioritario: [],
-                    rutinario: []
-                });
-            }
+            setSolicitudesData(dataFiltrada);
 
         } catch (err) {
             setError('Error cargando solicitudes: ' + err.message);
@@ -170,6 +614,96 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
             setLoading(false);
         }
     };
+
+    // Función para convertir resumen de pacientes de la API al formato de la aplicación
+    const convertirResumenPacientes = (datosAPI, prioridadTipo) => {
+        if (!Array.isArray(datosAPI)) return [];
+
+        return datosAPI.map(item => ({
+            id: item.idePaciente,
+            paciente: item.nomPaciente,
+            edad: item.edad,
+            historia: item.idePaciente,
+            ingreso: item.ingreso,
+            folio: item.folio,
+            cama: item.cama,
+            nombreCama: item.cama,
+            fechaSolicitud: item.fechaSolicitud,
+            fechaSolicitudVista: new Date(item.fechaSolicitud).toLocaleDateString(),
+            areaSolicitante: item.areaSolicitante,
+            estado: 'Actual',
+            prioridad: prioridadTipo,
+            observaciones: '',
+            // Nueva estructura para resumen
+            cantidadExamenes: item.cantidadExamenes,
+            examenes: [], // Se llenarán al expandir
+            examenesDetallados: false // Flag para saber si ya se cargaron los detalles
+        }));
+    };
+
+    // función para filtrar exámenes individuales tomados
+    const filtrarExamenesIndividualesTomados = (pacientesConExamenes, examenesTomados) => {
+        return pacientesConExamenes.map(paciente => {
+            // Obtener exámenes ya tomados para este paciente específico
+            const examenesYaTomados = examenesTomados.filter(tomado =>
+                tomado.historia === paciente.historia &&
+                tomado.numeroIngreso === paciente.ingreso.toString() &&
+                tomado.numeroFolio === paciente.folio.toString()
+            );
+
+            // Si no hay exámenes tomados para este paciente, devolver tal como está
+            if (examenesYaTomados.length === 0) {
+                return paciente;
+            }
+
+            // Filtrar exámenes que NO están tomados
+            const examenesPendientes = paciente.examenes.filter(examen => {
+                return !examenesYaTomados.some(tomado => tomado.nomServicio === examen);
+            });
+
+            // Marcar exámenes que YA están tomados para mostrarlos como completados
+            const examenesConEstado = paciente.examenes.map(examen => {
+                const estaTomado = examenesYaTomados.some(tomado => tomado.nomServicio === examen);
+                return {
+                    nombre: examen,
+                    tomado: estaTomado
+                };
+            });
+
+            // Actualizar el paciente con la nueva información
+            return {
+                ...paciente,
+                examenes: examenesPendientes, // Solo exámenes pendientes para lógica
+                examenesConEstado: examenesConEstado, // Todos los exámenes con estado
+                cantidadExamenes: paciente.cantidadExamenes, // Cantidad original
+                cantidadPendientes: examenesPendientes.length,
+                cantidadTomados: examenesYaTomados.length,
+                tieneExamenesPendientes: examenesPendientes.length > 0
+            };
+        }).filter(paciente => {
+            // En pestaña "actuales", solo mostrar pacientes con exámenes pendientes
+            if (filtroActual === 'actuales') {
+                return paciente.tieneExamenesPendientes;
+            }
+            return true;
+        });
+    };
+
+    // Función para filtrar pacientes que ya tienen exámenes tomados
+    const filtrarPacientesNoTomados = (pacientesOriginales, examenesTomados) => {
+        return pacientesOriginales.filter(paciente => {
+            // Verificar si este paciente tiene TODOS sus exámenes ya tomados
+            const examenesDelPaciente = examenesTomados.filter(tomado =>
+                tomado.historia === paciente.historia &&
+                tomado.numeroIngreso === paciente.ingreso.toString() &&
+                tomado.numeroFolio === paciente.folio.toString()
+            );
+
+            // Si la cantidad de exámenes tomados es menor que la cantidad total, incluir el paciente
+            return examenesDelPaciente.length < paciente.cantidadExamenes;
+        });
+    };
+
 
     // FUNCIÓN PARA AGRUPAR POR PACIENTE
     const agruparPorPaciente = (solicitudes) => {
@@ -249,26 +783,40 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
                 .toISOString()
                 .slice(0, 19);
 
-            const examenesTomados = examenesIndices.map(examIndex => ({
-                historia: solicitud.historia || solicitud.IdePaciente,
-                nomPaciente: solicitud.paciente || solicitud.NomPaciente,
-                edad: solicitud.edad || solicitud.Edad,
-                numeroIngreso: solicitud.ingreso || solicitud.Ingreso,
-                numeroFolio: solicitud.folio || solicitud.Folio,
-                cama: solicitud.cama || solicitud.Cama,
-                nomCama: solicitud.nombreCama || solicitud.NomCama,
-                areaSolicitante: solicitud.areaSolicitante || solicitud.Areasolicitante,
-                prioridad: solicitud.prioridad || solicitud.Prioridad,
-                codServicio: solicitud.codigoServicio || solicitud.CodServicio,
-                nomServicio: solicitud.examenes ? solicitud.examenes[examIndex] : solicitud.NomServicio,
-                observaciones: solicitud.observaciones || solicitud.Observaciones || '',
-                fechaSolicitud: solicitud.fechaSolicitud, // Fecha de la consulta externa
-                fechaTomado: localISOTime,// Momento del checkeo
-                responsable: 'Usuario Sistema'
-            }));
+            // OBTENER CÓDIGOS DE EXÁMENES DESDE EL CACHE DETALLADO
+            let codigosExamenes = {};
+            const examenesDetalladosPaciente = examenesDetallados[solicitud.historia] || [];
+
+            // Crear nombre -> código
+            examenesDetalladosPaciente.forEach(examen => {
+                codigosExamenes[examen.nomExamen] = examen.codExamen;
+            });
+
+            const examenesTomados = examenesIndices.map(examIndex => {
+                const nombreExamen = solicitud.examenes[examIndex];
+                const codigoExamen = codigosExamenes[nombreExamen] || 'AUTO_GENERATED';
+
+                return {
+                    historia: solicitud.historia,
+                    nomPaciente: solicitud.paciente,
+                    edad: solicitud.edad,
+                    numeroIngreso: solicitud.ingreso.toString(),
+                    numeroFolio: solicitud.folio.toString(),
+                    cama: solicitud.cama,
+                    nomCama: solicitud.nombreCama,
+                    areaSolicitante: solicitud.areaSolicitante,
+                    prioridad: solicitud.prioridad,
+                    codServicio: codigoExamen,
+                    nomServicio: nombreExamen,
+                    observaciones: solicitud.observaciones || '',
+                    fechaSolicitud: solicitud.fechaSolicitud,
+                    fechaTomado: localISOTime,
+                    responsable: 'Usuario Sistema'
+                };
+            });
+
 
             await ExamenesTomadosService.crearMultiplesExamenes(examenesTomados);
-
             await cargarSolicitudes();
 
             return { success: true };
@@ -294,9 +842,21 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
 
     // FUNCIONES DE PAGINACIÓN
     const paginateData = (data, categoria) => {
-        const page = currentPage[categoria];
+        // Verificar que data sea un array válido
+        if (!Array.isArray(data)) {
+            console.warn(`paginateData: data no es un array para categoria ${categoria}:`, data);
+            return {
+                items: [],
+                totalPages: 1,
+                currentPage: 1,
+                totalItems: 0
+            };
+        }
+
+        const page = currentPage[categoria] || 1;
         const startIndex = (page - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
+
         return {
             items: data.slice(startIndex, endIndex),
             totalPages: Math.ceil(data.length / itemsPerPage),
@@ -320,11 +880,6 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
         });
     };
 
-    useEffect(() => {
-        resetPagination();
-        cargarSolicitudes();
-    }, [filtro, usarDatosPrueba]);
-
     // Función de polling automático
     const startPolling = useCallback((interval = 30000) => {
         if (pollingRef.current) {
@@ -333,10 +888,10 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
 
         setIsPollingActive(true);
         pollingRef.current = setInterval(() => {
-            console.log('🔄 Actualizando datos automáticamente...');
+            //console.log('Actualizando datos automáticamente...');
             cargarSolicitudes();
         }, interval);
-    }, [cargarSolicitudes]);
+    }, []);
 
     const stopPolling = useCallback(() => {
         if (pollingRef.current) {
@@ -345,6 +900,11 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
         }
         setIsPollingActive(false);
     }, []);
+
+    useEffect(() => {
+        resetPagination();
+        cargarSolicitudes();
+    }, [filtro, usarDatosPrueba]);
 
     // Auto-iniciar polling si se pasa el intervalo
     useEffect(() => {
@@ -382,6 +942,7 @@ export const useSolicitudes = (filtro = 'actuales', usarDatosPrueba = false, pol
         loading,
         error,
         cargarSolicitudes,
+        expandirPaciente,
         marcarExamenesTomados,
         marcarExamenIndividual,
         marcarTodosLosExamenes,

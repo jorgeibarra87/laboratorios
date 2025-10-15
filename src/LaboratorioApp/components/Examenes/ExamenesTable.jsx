@@ -74,7 +74,7 @@ const ExamenesTable = () => {
     const USAR_DATOS_PRUEBA = API_CONFIG.USE_TEST_DATA;
 
     // Debug para verificar
-    console.log('🧪 Modo de datos:', USAR_DATOS_PRUEBA ? 'PRUEBA' : 'PRODUCCIÓN');
+    //console.log('🧪 Modo de datos:', USAR_DATOS_PRUEBA ? 'PRUEBA' : 'PRODUCCIÓN');
 
     // Usar el custom hook
     const {
@@ -82,6 +82,7 @@ const ExamenesTable = () => {
         loading,
         error,
         cargarSolicitudes,
+        expandirPaciente,
         paginateData,
         changePage,
         currentPage,
@@ -90,12 +91,22 @@ const ExamenesTable = () => {
         marcarTodosLosExamenes
     } = useSolicitudes(filtroActual, USAR_DATOS_PRUEBA, 300000); // Polling cada 5 minutos
 
-    const togglePatient = (categoria, pacienteId) => {
-        const key = `${categoria}-${pacienteId}`;
+    const togglePatient = async (categoria, pacienteIndex) => {
+        const key = `${categoria}-${pacienteIndex}`;
+        const isCurrentlyExpanded = expandedPatients[key];
+
         setExpandedPatients(prev => ({
             ...prev,
             [key]: !prev[key]
         }));
+
+        // Si se está expandiendo y el paciente no tiene exámenes detallados, cargarlos
+        if (!isCurrentlyExpanded) {
+            const paciente = solicitudesData[categoria][pacienteIndex];
+            if (paciente && !paciente.examenesDetallados) {
+                console.log(`🔄 Expandiendo paciente: ${paciente.paciente}, cargando exámenes...`);
+            }
+        }
     };
 
     // Función para manejar cambios en los filtros
@@ -613,9 +624,8 @@ const ExamenesTable = () => {
                                             className={`grid ${isTomadas ? 'grid-cols-17' : 'grid-cols-16'} gap-1 px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${isTomadas ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-blue-50'}`}
                                             onClick={() => togglePatient(categoria, index)}
                                         >
-                                            {console.log('Renderizando solicitud:', solicitud)}
                                             <div className="col-span-1 font-medium text-sm">{solicitud.historia}</div>
-                                            <div className="col-span-3 font-semibold text-blue-800 flex items-center">
+                                            <div className="col-span-3 font-medium text-sm flex items-center">
                                                 {isExpanded ?
                                                     <ChevronDown className="w-4 h-4 mr-1 flex-shrink-0" /> :
                                                     <ChevronRight className="w-4 h-4 mr-1 flex-shrink-0" />
@@ -628,10 +638,10 @@ const ExamenesTable = () => {
                                             <div className="col-span-1 text-sm font-medium text-gray-700">
                                                 {solicitud.edad} años
                                             </div>
-                                            <div className="col-span-1 text-sm font-medium text-blue-600">
+                                            <div className="col-span-1 text-sm font-medium text-blue-500">
                                                 {solicitud.ingreso}
                                             </div>
-                                            <div className="col-span-1 text-sm font-medium text-purple-600">
+                                            <div className="col-span-1 text-sm font-medium text-blue-800">
                                                 {solicitud.folio}
                                             </div>
                                             <div className="col-span-1 text-sm">
@@ -643,13 +653,26 @@ const ExamenesTable = () => {
                                             <div className="col-span-2 text-sm text-gray-600">
                                                 <div className="flex items-center">
                                                     <TestTube className="w-4 h-4 mr-1 text-blue-500 flex-shrink-0" />
-                                                    <span>{solicitud.examenes.length} examen{solicitud.examenes.length !== 1 ? 'es' : ''}</span>
-                                                    {isTomadas && (
-                                                        <span className="ml-1 text-green-600 font-semibold">✓</span>
+                                                    {isTomadas ? (
+                                                        // En pestaña TOMADOS: mostrar cantidad exámenes tomados
+                                                        <span>
+                                                            {solicitud.cantidadExamenes || solicitud.examenes.length} examen{(solicitud.cantidadExamenes || solicitud.examenes.length) !== 1 ? 'es' : ''} tomado{(solicitud.cantidadExamenes || solicitud.examenes.length) !== 1 ? 's' : ''}
+                                                            <span className="ml-1 text-green-600 font-semibold">✓</span>
+                                                        </span>
+                                                    ) : (
+                                                        // En pestaña ACTUALES: mostrar pendientes y tomados
+                                                        <span>
+                                                            {solicitud.cantidadPendientes || 0} pendiente{(solicitud.cantidadPendientes || 0) !== 1 ? 's' : ''}
+                                                            {solicitud.cantidadTomados > 0 && (
+                                                                <span className="text-green-600 ml-1">
+                                                                    ({solicitud.cantidadTomados} tomado{solicitud.cantidadTomados !== 1 ? 's' : ''})
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="col-span-2 text-sm">{solicitud.fechaSolicitud}</div>
+                                            <div className="col-span-2 text-sm">{solicitud.fechaSolicitudVista || new Date(solicitud.fechaSolicitud).toLocaleDateString()}</div>
                                             {/* Fecha Tomado - 2 columnas - solo para tomadas */}
                                             {isTomadas && (
                                                 <div className="col-span-2 text-sm">
@@ -683,42 +706,61 @@ const ExamenesTable = () => {
                                             <div className="bg-gray-50">
                                                 <div className="px-4 py-2 border-l-4 border-gray-300 ml-4">
                                                     <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                                                        Exámenes de laboratorio solicitados ({solicitud.examenes.length}):
-                                                        {isTomadas && (
-                                                            <span className="ml-2 text-green-600 text-xs bg-green-100 px-2 py-1 rounded">
-                                                                COMPLETADOS
-                                                            </span>
+                                                        {isTomadas ? (
+                                                            // En TOMADOS: mostrar tomados
+                                                            <>
+                                                                Exámenes de laboratorio realizados ({solicitud.cantidadExamenes || solicitud.examenes.length})
+                                                                <span className="ml-2 text-green-600 text-xs bg-green-100 px-2 py-1 rounded">COMPLETADOS</span>
+                                                            </>
+                                                        ) : (
+                                                            // En ACTUALES: mostrar total con estado
+                                                            <>
+                                                                Exámenes de laboratorio solicitados ({solicitud.cantidadExamenes || 0})
+                                                                {solicitud.cantidadTomados > 0 && (
+                                                                    <span className="ml-2 text-green-600 text-xs bg-green-100 px-2 py-1 rounded">
+                                                                        {solicitud.cantidadTomados} COMPLETADO{solicitud.cantidadTomados !== 1 ? 'S' : ''}
+                                                                    </span>
+                                                                )}
+                                                            </>
                                                         )}
                                                     </div>
                                                     <div className="space-y-1">
-                                                        {solicitud.examenes.map((examen, examIndex) => {
-                                                            const isChecked = isExamChecked(categoria, index, examIndex);
+                                                        {(solicitud.examenesConEstado || solicitud.examenes.map(ex => ({ nombre: ex, tomado: isTomadas }))).map((examen, examIndex) => {
+                                                            const isChecked = isTomadas ? true : (examen.tomado || isExamChecked(categoria, index, examIndex));
+                                                            const nombreExamen = examen.nombre || examen;
 
                                                             return (
-                                                                <div
-                                                                    key={`${categoria}-${solicitud.id}-${index}-exam-${examIndex}`}
-                                                                    className={`flex items-center justify-between rounded p-2 shadow-sm ${isChecked ? 'bg-green-50 border border-green-200' : 'bg-white'}`}
-                                                                >
+                                                                <div key={`${categoria}-${solicitud.id}-${index}-exam-${examIndex}`}
+                                                                    className={`flex items-center justify-between rounded p-2 shadow-sm ${isTomadas ? 'bg-green-50 border border-green-200' :
+                                                                        (isChecked ? 'bg-green-50 border border-green-200 opacity-60' : 'bg-white')
+                                                                        }`}>
                                                                     <div className="flex items-center">
-                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold mr-3 flex-shrink-0 ${isChecked ? 'bg-green-500 text-white' : 'bg-blue-100 text-blue-800'}`}>
+                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold mr-3 flex-shrink-0 ${isChecked ? 'bg-green-500 text-white' : 'bg-blue-100 text-blue-800'
+                                                                            }`}>
                                                                             {examIndex + 1}
                                                                         </span>
-                                                                        <span className={`text-sm ${isChecked ? 'text-gray-600' : 'text-gray-800'}`}>
-                                                                            {examen}
+                                                                        <span className={`text-sm ${isTomadas ? 'text-gray-800' : // En TOMADOS: texto normal, sin tachado
+                                                                            (isChecked ? 'text-gray-500 line-through' : 'text-gray-800') // En ACTUALES: tachado si está completado
+                                                                            }`}>
+                                                                            {nombreExamen}
                                                                         </span>
                                                                         {isChecked && (
                                                                             <span className="ml-2 text-xs text-green-600 font-semibold">
-                                                                                {isTomadas ? '✓ Realizado' : '✓ Completado'}
+                                                                                ✓ {isTomadas ? 'Realizado' : 'Completado'}
                                                                             </span>
                                                                         )}
                                                                     </div>
 
-                                                                    {/* Botones de acción solo si NO es "tomadas" */}
-                                                                    {!isTomadas && (
+                                                                    {/* Botones de acción solo para exámenes pendientes en ACTUALES */}
+                                                                    {!isTomadas && !examen.tomado && (
                                                                         <div className="flex space-x-1">
                                                                             <button
-                                                                                className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                                onClick={() => toggleSingleExam(categoria, index, examIndex, solicitud)}
+                                                                                className={`p-1 ${isChecked ? 'text-green-800 bg-green-200' : 'text-green-600 hover:text-green-800'
+                                                                                    } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    toggleSingleExam(categoria, index, examIndex, solicitud);
+                                                                                }}
                                                                                 disabled={isProcessing}
                                                                                 title={isChecked ? "Marcar como pendiente" : "Marcar como tomado"}
                                                                             >
@@ -727,7 +769,7 @@ const ExamenesTable = () => {
                                                                         </div>
                                                                     )}
 
-                                                                    {/* Para "tomadas", mostrar solo indicador visual */}
+                                                                    {/* Para TOMADOS, mostrar solo indicador visual */}
                                                                     {isTomadas && (
                                                                         <div className="flex space-x-1">
                                                                             <CheckCircle2 className="w-5 h-5 text-green-600" title="Examen realizado" />

@@ -10,8 +10,8 @@ export const API_CONFIG = {
     USE_TEST_DATA: import.meta.env.VITE_USE_TEST_DATA === 'true',
 };
 // Debug para verificar las variables
-console.log('🔧 Configuración de API:', {
+/* console.log('🔧 Configuración de API:', {
     dinamica: API_CONFIG.DINAMICA_API.BASE_URL,
     local: API_CONFIG.LOCAL_API.BASE_URL,
     useTestData: API_CONFIG.USE_TEST_DATA
-});
+}); */
