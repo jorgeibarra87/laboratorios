@@ -5,8 +5,9 @@ class SolicitudesService {
 
     // Métodos para la API DINAMICA (consultas)
     async makeDinamicaRequest(endpoint, options = {}) {
+        //const url = `${API_CONFIG.LOCAL_API.BASE_URL}${endpoint}`;
         const baseUrl = import.meta.env.DEV
-            ? '' // Vite proxy manejará automáticamente /hcnSolExa
+            ? '' // Vite proxy  /hcnSolExa
             : 'http://192.168.16.160:8002';
 
         const url = `${baseUrl}${endpoint}`;
