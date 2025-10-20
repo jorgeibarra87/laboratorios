@@ -1,15 +1,20 @@
-// solicitudesService.jsx
+// Services/SolicitudesService.js
 import { API_CONFIG } from '../config/api';
+import { mockPatients, mockPatientExams, mockTakenExams } from '../data/mockData';
+
+// Flag simple para usar mock
+const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true' || false;
 
 class SolicitudesService {
 
-    // Métodos para la API DINAMICA (consultas)
+    // Métodos para la API DINAMICA (con fallback)
     async makeDinamicaRequest(endpoint, options = {}) {
-        //const url = `${API_CONFIG.LOCAL_API.BASE_URL}${endpoint}`;
-        const baseUrl = import.meta.env.DEV
-            ? '' // Vite proxy  /hcnSolExa
-            : 'http://192.168.16.160:8002';
+        // Si está en modo mock, no hacer request
+        if (USE_MOCK) {
+            throw new Error('Using mock data');
+        }
 
+        const baseUrl = import.meta.env.DEV ? '' : 'http://192.168.16.160:8002';
         const url = `${baseUrl}${endpoint}`;
 
         const defaultOptions = {
@@ -21,32 +26,109 @@ class SolicitudesService {
         };
 
         try {
-            //console.log('Haciendo request a:', url);
             const response = await fetch(url, defaultOptions);
-
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
-            const data = await response.json();
-            //console.log('Datos recibidos:', data.length || 'objeto');
-            return data;
+            return await response.json();
         } catch (error) {
             console.error('❌ Error en petición a API dinamica:', error);
             throw error;
         }
     }
 
-    // ===== CONSULTAS A API DINAMICA =====
+    // Helper para simular delay y paginación
+    async mockDelay(ms = 300) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-    // FUNCIÓN: Obtener TODOS los pacientes con paginación automática
+    // Crear respuesta paginada mock
+    createMockPageResponse(data, page, size) {
+        const start = page * size;
+        const content = data.slice(start, start + size);
+
+        return {
+            content,
+            totalElements: data.length,
+            totalPages: Math.ceil(data.length / size),
+            size,
+            number: page,
+            first: page === 0,
+            last: page >= Math.ceil(data.length / size) - 1
+        };
+    }
+
+    async getResumenPacientesUrgentes(page = 0, size = 10) {
+        try {
+            return await this.makeDinamicaRequest(`/hcnSolExa/resumen-pacientes/urgentes?page=${page}&size=${size}`);
+        } catch (error) {
+            // Fallback a mock
+            await this.mockDelay();
+            return this.createMockPageResponse(mockPatients.urgentes, page, size);
+        }
+    }
+
+    async getResumenPacientesPrioritarios(page = 0, size = 10) {
+        try {
+            return await this.makeDinamicaRequest(`/hcnSolExa/resumen-pacientes/prioritarios?page=${page}&size=${size}`);
+        } catch (error) {
+            // Fallback a mock
+            await this.mockDelay();
+            return this.createMockPageResponse(mockPatients.prioritario, page, size);
+        }
+    }
+
+    async getResumenPacientesRutinarios(page = 0, size = 10) {
+        try {
+            return await this.makeDinamicaRequest(`/hcnSolExa/resumen-pacientes/rutinarios?page=${page}&size=${size}`);
+        } catch (error) {
+            // Fallback a mock
+            await this.mockDelay();
+            return this.createMockPageResponse(mockPatients.rutinario, page, size);
+        }
+    }
+
+    // Obtener exámenes específicos de un paciente
+    async getExamenesPaciente(historia) {
+        console.log('🔍 Buscando exámenes para historia:', historia);
+        try {
+            // API REAL
+            const response = await this.makeDinamicaRequest(`/hcnSolExa/paciente/${historia}/urgentes?documento=${historia}`);
+
+            // Validar que la respuesta tenga la estructura esperada
+            if (Array.isArray(response)) {
+                return response; // Si es array directo
+            } else if (response.examenes && Array.isArray(response.examenes)) {
+                return response.examenes; // Si está dentro de "examenes"
+            } else if (response.data && Array.isArray(response.data)) {
+                return response.data; // Si está dentro de "data"
+            } else {
+                console.warn('⚠️ Formato de API real desconocido:', response);
+                return [];
+            }
+
+        } catch (error) {
+            console.log('🎭 Using mock data for exámenes, historia:', historia);
+            await this.mockDelay(200);
+
+            // MOCK DATA - búsqueda directa
+            const exams = mockPatientExams[historia];
+
+            if (exams && exams.length > 0) {
+                console.log('✅ Encontrados', exams.length, 'exámenes para historia', historia);
+                return exams;
+            } else {
+                console.log('❌ No se encontraron exámenes para historia', historia);
+                return [];
+            }
+        }
+    }
+    // ===== MÉTODOS EXISTENTES =====
     async getAllPacientesPaginados(endpoint, maxPages = 20) {
         let allData = [];
         let currentPage = 0;
         let hasMoreData = true;
         let totalPagesFound = null;
-
-        //console.log(`Iniciando consulta paginada para ${endpoint}`);
 
         while (hasMoreData && currentPage < maxPages) {
             try {
@@ -54,24 +136,18 @@ class SolicitudesService {
 
                 if (Array.isArray(response)) {
                     allData = [...allData, ...response];
-                    hasMoreData = response.length === 50; // Si devuelve menos de 50, es la última página
-                    //console.log(`Página ${currentPage + 1}: ${response.length} registros obtenidos`);
-                }
-                // Si la API cambia a formato estándar
-                else if (response.content && Array.isArray(response.content)) {
+                    hasMoreData = response.length === 50;
+                } else if (response.content && Array.isArray(response.content)) {
                     allData = [...allData, ...response.content];
                     hasMoreData = !response.last;
                     totalPagesFound = response.totalPages;
-                    //console.log(`Página ${currentPage + 1}/${response.totalPages}: ${response.content.length} registros`);
-                }
-                else {
+                } else {
                     console.warn('⚠️ Formato de respuesta desconocido:', response);
                     break;
                 }
 
                 currentPage++;
 
-                // pausa para no sobrecargar
                 if (hasMoreData) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
@@ -82,32 +158,11 @@ class SolicitudesService {
             }
         }
 
-        //console.log(`Total obtenido de ${endpoint}: ${allData.length} registros${totalPagesFound ? ` de ${totalPagesFound} páginas` : ''}`);
         return allData;
     }
 
-    async getResumenPacientesUrgentes(page = 0, size = 10) {
-        return await this.makeDinamicaRequest(`/hcnSolExa/resumen-pacientes/urgentes?page=${page}&size=${size}`);
-    }
-
-    async getResumenPacientesPrioritarios(page = 0, size = 10) {
-        return await this.makeDinamicaRequest(`/hcnSolExa/resumen-pacientes/prioritarios?page=${page}&size=${size}`);
-    }
-
-    async getResumenPacientesRutinarios(page = 0, size = 10) {
-        return await this.makeDinamicaRequest(`/hcnSolExa/resumen-pacientes/rutinarios?page=${page}&size=${size}`);
-    }
-
-    // Obtener exámenes específicos de un paciente
-    async getExamenesPaciente(documento) {
-        return await this.makeDinamicaRequest(`/hcnSolExa/paciente/${documento}/urgentes?documento=${documento}`);
-    }
-
-    // obtener todos los pacientes
     async getTodosLosPacientesPorPrioridad() {
         try {
-            //console.log('Iniciando consulta completa con paginación automática...');
-
             const [urgentes, prioritarios, rutinarios] = await Promise.all([
                 this.getResumenPacientesUrgentes(),
                 this.getResumenPacientesPrioritarios(),
@@ -115,13 +170,6 @@ class SolicitudesService {
             ]);
 
             const totalRegistros = urgentes.length + prioritarios.length + rutinarios.length;
-
-            /* console.log('Resumen consulta completa:', {
-                urgentes: urgentes.length,
-                prioritarios: prioritarios.length,
-                rutinarios: rutinarios.length,
-                total: totalRegistros
-            }); */
 
             return {
                 urgentes: urgentes || [],
@@ -134,11 +182,9 @@ class SolicitudesService {
         }
     }
 
-    // ===== MÉTODOS PARA BACKEND LOCAL (exámenes tomados) =====
-
+    // ===== MÉTODOS PARA BACKEND LOCAL =====
     async makeLocalRequest(endpoint, options = {}) {
         const url = `${API_CONFIG.LOCAL_API.BASE_URL}${endpoint}`;
-        //console.log('Petición a backend local:', url);
 
         const defaultOptions = {
             headers: {
@@ -149,11 +195,9 @@ class SolicitudesService {
 
         try {
             const response = await fetch(url, defaultOptions);
-
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
             return await response.json();
         } catch (error) {
             console.error('Error en petición a backend local:', error);
@@ -161,12 +205,10 @@ class SolicitudesService {
         }
     }
 
-    // Obtener exámenes tomados desde backend local
     async getExamenesTomados() {
         return await this.makeLocalRequest('/examenes-tomados');
     }
 
-    // Crear examen tomado en backend local
     async crearExamenTomado(examenData) {
         return await this.makeLocalRequest('/examenes-tomados', {
             method: 'POST',
@@ -174,7 +216,6 @@ class SolicitudesService {
         });
     }
 
-    // Crear múltiples exámenes tomados en backend local
     async crearMultiplesExamenes(examenesData) {
         return await this.makeLocalRequest('/examenes-tomados/bulk', {
             method: 'POST',
@@ -182,7 +223,6 @@ class SolicitudesService {
         });
     }
 
-    // Obtener exámenes tomados por historia desde backend local
     async getExamenesPorHistoria(historia) {
         return await this.makeLocalRequest(`/examenes-tomados/historia/${historia}`);
     }

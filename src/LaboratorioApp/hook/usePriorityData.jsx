@@ -2,196 +2,206 @@
 import { useState, useEffect, useCallback } from 'react';
 import SolicitudesService from '../Services/SolicitudesService';
 import ExamenesTomadosService from '../Services/ExamenesTomadosService';
-import {
-    mockPatients,
-    mockPatientExams,
-    mockTakenExams,
-    mockApiDelay,
-    USE_MOCK_DATA
-} from '../data/mockData';
+import { mockTakenExams } from '../data/mockData';
 
 export const usePriorityData = (prioridad, filtroActual) => {
     const [data, setData] = useState([]);
     const [patientExams, setPatientExams] = useState({});
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [useMock, setUseMock] = useState(USE_MOCK_DATA);
+    // Estados de paginación
+    const [currentPage, setCurrentPage] = useState(0);
+    const [pageSize] = useState(10);
+    const [totalElements, setTotalElements] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
 
-    // Función para cargar datos mock
-    const loadMockData = useCallback(async () => {
-        await mockApiDelay(800); // Simular delay de red
-
-        if (filtroActual === 'tomadas') {
-            return mockTakenExams[prioridad] || [];
-        } else {
-            return mockPatients[prioridad] || [];
-        }
-    }, [prioridad, filtroActual]);
-
-    // Función para cargar exámenes mock de un paciente
-    const loadMockPatientExams = useCallback(async (patientId) => {
-        await mockApiDelay(500);
-        return mockPatientExams[patientId] || [];
-    }, []);
-
-    // Función principal para cargar datos
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (page = 0) => {
         setLoading(true);
         setError(null);
 
         try {
-            let result;
+            let response;
 
-            // Si está activado el modo mock o falla la API, usar datos mock
-            if (useMock) {
-                result = await loadMockData();
-                console.log(`🧪 Usando datos mock para ${prioridad} - ${filtroActual}`);
+            if (filtroActual === 'tomadas') {
+                // Backend de tomados
+                const allTomados = await ExamenesTomadosService.getExamenesTomados();
+                const filtered = (allTomados || []).filter(exam => {
+                    if (!exam.prioridad) return false;
+                    const examPriority = exam.prioridad.toLowerCase();
+
+                    if (prioridad === 'urgentes') return examPriority.includes('urgente');
+                    if (prioridad === 'prioritario') return examPriority.includes('prioritaria');
+                    if (prioridad === 'rutinario') return examPriority.includes('rutinario');
+
+                    return false;
+                });
+
+                const start = page * pageSize;
+                response = {
+                    content: filtered.slice(start, start + pageSize),
+                    totalElements: filtered.length,
+                    totalPages: Math.ceil(filtered.length / pageSize)
+                };
+
             } else {
-                try {
-                    // Intentar cargar datos reales
-                    if (filtroActual === 'tomadas') {
-                        const examsTaken = await ExamenesTomadosService.getExamenesTomados();
-                        result = examsTaken.filter(exam =>
-                            exam.prioridad?.toLowerCase().includes(
-                                prioridad === 'prioritario' ? 'prioritaria' : prioridad
-                            )
-                        );
-                    } else {
-                        if (prioridad === 'urgentes') {
-                            result = await SolicitudesService.getResumenPacientesUrgentes(0, 100);
-                        } else if (prioridad === 'prioritario') {
-                            result = await SolicitudesService.getResumenPacientesPrioritarios(0, 100);
-                        } else {
-                            result = await SolicitudesService.getResumenPacientesRutinarios(0, 100);
-                        }
-                    }
+                // Para actuales no modificar los datos originales
+                let solicitudesData;
 
-                    console.log(`📡 Usando datos reales para ${prioridad} - ${filtroActual}`);
-                } catch (apiError) {
-                    console.warn(`❌ Error en API para ${prioridad}, usando datos mock:`, apiError);
-                    setUseMock(true);
-                    result = await loadMockData();
+                if (prioridad === 'urgentes') {
+                    solicitudesData = await SolicitudesService.getResumenPacientesUrgentes(page, pageSize);
+                } else if (prioridad === 'prioritario') {
+                    solicitudesData = await SolicitudesService.getResumenPacientesPrioritarios(page, pageSize);
+                } else {
+                    solicitudesData = await SolicitudesService.getResumenPacientesRutinarios(page, pageSize);
                 }
+
+                const content = solicitudesData.content || solicitudesData || [];
+
+                response = {
+                    content,
+                    totalElements: solicitudesData.totalElements || content.length,
+                    totalPages: solicitudesData.totalPages || Math.ceil(content.length / pageSize)
+                };
             }
 
-            setData(result || []);
+            setData(response.content || []);
+            setTotalElements(response.totalElements || 0);
+            setTotalPages(response.totalPages || 0);
+            setCurrentPage(page);
+
         } catch (err) {
+            console.error('Error loading data:', err);
             setError(err.message);
-            console.error(`Error cargando datos de ${prioridad}:`, err);
-
-            // Como último recurso, intentar con datos mock
-            try {
-                const mockResult = await loadMockData();
-                setData(mockResult);
-                setUseMock(true);
-            } catch (mockErr) {
-                console.error('Error incluso con datos mock:', mockErr);
-            }
+            setData([]);
         } finally {
             setLoading(false);
         }
-    }, [prioridad, filtroActual, useMock, loadMockData]);
+    }, [prioridad, filtroActual, pageSize]);
 
-    // Cargar exámenes específicos de un paciente
     const loadPatientExams = useCallback(async (patientId) => {
         try {
-            let exams;
+            const patient = data.find(p => p.id === patientId);
+            const historia = patient?.historia || patientId;
 
-            if (useMock) {
-                exams = await loadMockPatientExams(patientId);
-            } else {
-                try {
-                    exams = await SolicitudesService.getExamenesPaciente(patientId);
-                } catch (apiError) {
-                    console.warn(`❌ Error cargando exámenes del paciente ${patientId}, usando mock:`, apiError);
-                    exams = await loadMockPatientExams(patientId);
-                }
-            }
-
+            console.log('Loading exams for:', historia, patientId); // Debug
+            // Cargar exámenes de la solicitud
+            const exams = await SolicitudesService.getExamenesPaciente(historia);
+            // Cargar exámenes ya tomados para este paciente
+            const takenExams = await ExamenesTomadosService.getExamenesPorHistoria(historia).catch(() => []);
+            const takenExamNames = takenExams.map(ex => ex.nomServicio?.trim().toUpperCase());
+            // Marcar los que ya están tomados
+            const examsWithStatus = exams.map(exam => ({
+                ...exam,
+                tomado: takenExamNames.includes(exam.nombre?.trim().toUpperCase())
+            }));
+            // actualizar los exámenes
             setPatientExams(prev => ({
                 ...prev,
-                [patientId]: exams
+                [patientId]: examsWithStatus
             }));
-        } catch (err) {
-            console.error('Error cargando exámenes del paciente:', err);
-        }
-    }, [useMock, loadMockPatientExams]);
 
-    // Marcar exámenes como tomados
+            console.log('Loaded exams:', examsWithStatus.length, 'taken:', takenExamNames.length); // Debug
+
+        } catch (err) {
+            console.warn('Error loading patient exams:', err);
+            setPatientExams(prev => ({ ...prev, [patientId]: [] }));
+        }
+    }, [data]);
+
     const markExamsTaken = useCallback(async (patient, examIndex) => {
         try {
-            if (useMock) {
-                // Simular marcar como tomado en datos mock
-                await mockApiDelay(300);
-                console.log(`🧪 Mock: Marcando exámenes como tomados para paciente ${patient.id}`);
+            const createPayload = (exam) => ({
+                historia: patient.historia,
+                nomPaciente: patient.paciente,
+                numeroIngreso: String(patient.ingreso),
+                numeroFolio: String(patient.folio),
+                codServicio: exam.nombre.substring(0, 15).replace(/\s+/g, '').toUpperCase(),
+                nomServicio: exam.nombre,
+                fechaTomado: new Date(),
+                //fechaTomado: new Date().toISOString().slice(0, -1), // Sin Z para evitar problemas de zona horaria
+                edad: patient.edad,
+                cama: patient.cama,
+                nomCama: patient.cama,
+                areaSolicitante: patient.areaSolicitante,
+                prioridad: patient.prioridad,
+                fechaSolicitud: patient.fechaSolicitud,
+                responsable: 'Sistema Web'
+            });
 
-                if (examIndex === 'all') {
-                    // Marcar todos como tomados
+            console.log('Marking exam:', patient.historia, examIndex); // Debug
+
+            if (examIndex === 'all') {
+                const exams = patientExams[patient.id] || [];
+                const pendingExams = exams.filter(ex => !ex.tomado);
+
+                if (pendingExams.length) {
+                    await ExamenesTomadosService.crearMultiplesExamenes(pendingExams.map(createPayload));
+
+                    // Solo actualizar exámenes en UI
                     setPatientExams(prev => ({
                         ...prev,
-                        [patient.id]: prev[patient.id]?.map(exam => ({
-                            ...exam,
-                            tomado: true
-                        })) || []
+                        [patient.id]: prev[patient.id].map(exam => ({ ...exam, tomado: true }))
                     }));
-                } else {
-                    // Marcar examen individual
-                    setPatientExams(prev => ({
-                        ...prev,
-                        [patient.id]: prev[patient.id]?.map((exam, idx) =>
-                            idx === examIndex ? { ...exam, tomado: true } : exam
-                        ) || []
-                    }));
+
+                    console.log('All exams marked as taken'); // Debug
                 }
             } else {
-                // Usar API real
-                if (examIndex === 'all') {
-                    await ExamenesTomadosService.crearMultiplesExamenes(
-                        patientExams[patient.id]?.map(exam => ({
-                            historia: patient.historia,
-                            nomPaciente: patient.paciente,
-                            nomServicio: exam.nombre,
-                            fechaTomado: new Date().toISOString(),
-                            usuarioTomo: 'Usuario Actual'
-                        })) || []
-                    );
-                } else {
-                    await ExamenesTomadosService.crearExamenTomado({
-                        historia: patient.historia,
-                        nomPaciente: patient.paciente,
-                        nomServicio: patientExams[patient.id][examIndex].nombre,
-                        fechaTomado: new Date().toISOString(),
-                        usuarioTomo: 'Usuario Actual'
-                    });
+                const exam = patientExams[patient.id][examIndex];
+                if (exam && !exam.tomado) {
+                    await ExamenesTomadosService.crearExamenTomado(createPayload(exam));
+                    // Solo actualizar examen individual en UI
+                    setPatientExams(prev => ({
+                        ...prev,
+                        [patient.id]: prev[patient.id].map((ex, idx) =>
+                            idx === examIndex ? { ...ex, tomado: true } : ex
+                        )
+                    }));
+                    console.log('Single exam marked as taken'); // Debug
                 }
             }
 
-            // Recargar datos
-            await loadData();
         } catch (err) {
-            console.error('Error marcando exámenes:', err);
+            console.error('Error marking exam:', err);
+            alert('Error: ' + err.message);
         }
-    }, [patientExams, loadData, useMock]);
+    }, [patientExams]);
 
-    // Función para alternar entre mock y datos reales
-    const toggleMockMode = useCallback(() => {
-        setUseMock(prev => !prev);
-    }, []);
+    // Funciones de paginación
+    const goToPage = useCallback((page) => {
+        if (page >= 0 && page < totalPages) {
+            loadData(page);
+        }
+    }, [totalPages, loadData]);
 
-    // Cargar datos inicialmente
+    const nextPage = useCallback(() => {
+        goToPage(currentPage + 1);
+    }, [currentPage, goToPage]);
+
+    const prevPage = useCallback(() => {
+        goToPage(currentPage - 1);
+    }, [currentPage, goToPage]);
+    // Cargar datos iniciales
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        loadData(0);
+    }, [prioridad, filtroActual]);
 
     return {
         data,
         patientExams,
         loading,
         error,
-        useMock,
-        refetch: loadData,
+        refetch: () => loadData(currentPage),
         loadPatientExams,
         markExamsTaken,
-        toggleMockMode
+        // Paginación
+        currentPage,
+        pageSize,
+        totalElements,
+        totalPages,
+        goToPage,
+        nextPage,
+        prevPage,
+        hasNextPage: currentPage < totalPages - 1,
+        hasPrevPage: currentPage > 0
     };
 };

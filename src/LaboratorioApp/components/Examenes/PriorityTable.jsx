@@ -1,6 +1,10 @@
 // PriorityTable.jsx
 import React, { useState } from 'react';
-import { RefreshCw, Search, X, CheckCircle2, TestTube, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+    RefreshCw, Search, X, CheckCircle2, TestTube, ChevronDown, ChevronRight,
+    ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight,
+    Check
+} from 'lucide-react';
 import { usePriorityData } from '../../hook/usePriorityData';
 
 const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
@@ -16,14 +20,47 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
         refetch,
         patientExams,
         loadPatientExams,
-        markExamsTaken
+        markExamsTaken,
+        // Paginación
+        currentPage,
+        totalElements,
+        totalPages,
+        goToPage,
+        nextPage,
+        prevPage,
+        hasNextPage,
+        hasPrevPage
     } = usePriorityData(prioridad, filtroActual);
 
-    // Filtrar datos
+    // Filtrar datos (solo afecta la página actual)
     const filteredData = data.filter(patient => {
         return Object.entries(filters).every(([key, value]) => {
             if (!value.trim()) return true;
-            return patient[key]?.toString().toLowerCase().includes(value.toLowerCase().trim());
+
+            let fieldValue = '';
+
+            // Mapear correctamente los campos
+            switch (key) {
+                case 'historia':
+                    fieldValue = patient.historia || '';
+                    break;
+                case 'paciente':
+                    fieldValue = patient.paciente || '';
+                    break;
+                case 'ingreso':
+                    fieldValue = patient.ingreso || '';
+                    break;
+                case 'folio':
+                    fieldValue = patient.folio || '';
+                    break;
+                case 'area':
+                    fieldValue = patient.areaSolicitante || '';
+                    break;
+                default:
+                    fieldValue = patient[key] || '';
+            }
+
+            return fieldValue.toString().toLowerCase().includes(value.toLowerCase().trim());
         });
     });
 
@@ -38,7 +75,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
             setExpandedPatient(null);
         } else {
             setExpandedPatient(patientId);
-            // Cargar exámenes específicos del paciente
             await loadPatientExams(patientId);
         }
     };
@@ -48,6 +84,86 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
+    };
+
+    // Componente de paginación
+    const PaginationControls = () => {
+        if (totalPages <= 1) return null;
+
+        const getVisiblePages = () => {
+            const pages = [];
+            const maxVisible = 5;
+
+            let start = Math.max(0, currentPage - Math.floor(maxVisible / 2));
+            let end = Math.min(totalPages, start + maxVisible);
+
+            if (end - start < maxVisible) {
+                start = Math.max(0, end - maxVisible);
+            }
+
+            for (let i = start; i < end; i++) {
+                pages.push(i);
+            }
+
+            return pages;
+        };
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t">
+                <div className="flex items-center text-sm text-gray-700">
+                    <span>
+                        Mostrando {(currentPage * 10) + 1} a {Math.min((currentPage + 1) * 10, totalElements)} de {totalElements} resultados
+                    </span>
+                </div>
+
+                <div className="flex items-center space-x-1">
+                    <button
+                        onClick={() => goToPage(0)}
+                        disabled={!hasPrevPage}
+                        className="px-2 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        <ChevronsLeft className="w-4 h-4" />
+                    </button>
+
+                    <button
+                        onClick={prevPage}
+                        disabled={!hasPrevPage}
+                        className="px-2 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {getVisiblePages().map(page => (
+                        <button
+                            key={page}
+                            onClick={() => goToPage(page)}
+                            className={`px-3 py-1 text-sm rounded border ${currentPage === page
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'hover:bg-gray-100'
+                                }`}
+                        >
+                            {page + 1}
+                        </button>
+                    ))}
+
+                    <button
+                        onClick={nextPage}
+                        disabled={!hasNextPage}
+                        className="px-2 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        <ChevronRightIcon className="w-4 h-4" />
+                    </button>
+
+                    <button
+                        onClick={() => goToPage(totalPages - 1)}
+                        disabled={!hasNextPage}
+                        className="px-2 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                        <ChevronsRight className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     if (loading) {
@@ -71,13 +187,26 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                 <div className="flex items-center">
                     {titulo}
                     {filtroActual === 'tomadas' && <CheckCircle2 className="w-5 h-5 ml-2" />}
+                    <span className="ml-3 text-sm bg-white/20 px-2 py-1 rounded">
+                        {totalElements} total
+                    </span>
                 </div>
 
                 <div className="flex items-center space-x-4">
                     {hasActiveFilters && (
-                        <span className="text-xs bg-white/20 px-2 py-1 rounded">
-                            {filteredData.length} de {data.length}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                            <span className="text-xs bg-white/20 px-2 py-1 rounded">
+                                {filteredData.length} de {data.length} (página actual)
+                            </span>
+                            <button
+                                onClick={clearFilters}
+                                className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded flex items-center"
+                                title="Limpiar filtros"
+                            >
+                                <X className="w-3 h-3 mr-1" />
+                                Limpiar
+                            </button>
+                        </div>
                     )}
                     <button
                         onClick={refetch}
@@ -100,7 +229,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                     <TestTube className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                     <p>
                         {hasActiveFilters ?
-                            'No se encontraron resultados' :
+                            'No se encontraron resultados en esta página' :
                             `No hay solicitudes ${titulo.toLowerCase()}`
                         }
                     </p>
@@ -123,14 +252,14 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                 {filtroActual !== 'tomadas' && <th className="px-4 py-3 text-center">Acciones</th>}
                             </tr>
                             {/* Fila de filtros */}
-                            <tr className="bg-gradient-to-r from-gray-700 to-gray-600">
+                            <tr className="bg-gray-700">
                                 <td className="px-4 py-2">
                                     <input
                                         type="text"
                                         value={filters.historia}
                                         onChange={(e) => setFilters(prev => ({ ...prev, historia: e.target.value }))}
                                         placeholder="Historia..."
-                                        className="w-full px-2 py-1 text-sm rounded border"
+                                        className="w-full px-2 py-1 text-sm rounded border bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </td>
                                 <td className="px-4 py-2">
@@ -139,7 +268,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         value={filters.paciente}
                                         onChange={(e) => setFilters(prev => ({ ...prev, paciente: e.target.value }))}
                                         placeholder="Paciente..."
-                                        className="w-full px-2 py-1 text-sm rounded border"
+                                        className="w-full px-2 py-1 text-sm rounded border bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </td>
                                 <td className="px-4 py-2 text-center text-gray-300">-</td>
@@ -149,7 +278,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         value={filters.ingreso}
                                         onChange={(e) => setFilters(prev => ({ ...prev, ingreso: e.target.value }))}
                                         placeholder="Ingreso..."
-                                        className="w-full px-2 py-1 text-sm rounded border"
+                                        className="w-full px-2 py-1 text-sm rounded border bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </td>
                                 <td className="px-4 py-2">
@@ -158,7 +287,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         value={filters.folio}
                                         onChange={(e) => setFilters(prev => ({ ...prev, folio: e.target.value }))}
                                         placeholder="Folio..."
-                                        className="w-full px-2 py-1 text-sm rounded border"
+                                        className="w-full px-2 py-1 text-sm rounded border bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </td>
                                 <td className="px-4 py-2 text-center text-gray-300">-</td>
@@ -171,21 +300,24 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         value={filters.area}
                                         onChange={(e) => setFilters(prev => ({ ...prev, area: e.target.value }))}
                                         placeholder="Área..."
-                                        className="w-full px-2 py-1 text-sm rounded border"
+                                        className="w-full px-2 py-1 text-sm rounded border bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </td>
-                                {filtroActual !== 'tomadas' && (
-                                    <td className="px-4 py-2 text-center">
-                                        {hasActiveFilters && (
-                                            <button
-                                                onClick={clearFilters}
-                                                className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded"
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        )}
-                                    </td>
-                                )}
+                                <td className="px-4 py-2 text-center">
+                                    {/* Botón limpiar */}
+                                    {hasActiveFilters ? (
+                                        <button
+                                            onClick={clearFilters}
+                                            className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded flex items-center"
+                                            title="Limpiar filtros"
+                                        >
+                                            <X className="w-3 h-3 mr-1" />
+                                            Limpiar
+                                        </button>
+                                    ) : (
+                                        <span className="text-gray-400 text-xs">-</span>
+                                    )}
+                                </td>
                             </tr>
                         </thead>
                         <tbody>
@@ -210,7 +342,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         <td className="px-4 py-3">
                                             {filtroActual === 'tomadas' ?
                                                 `${patient.cantidadExamenes} completados` :
-                                                `${patient.cantidadPendientes} pendientes`
+                                                `${patient.cantidadPendientes || patient.cantidadExamenes} pendientes`
                                             }
                                         </td>
                                         <td className="px-4 py-3">{formatDate(patient.fechaSolicitud)}</td>
@@ -225,16 +357,16 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                         e.stopPropagation();
                                                         markExamsTaken(patient, 'all');
                                                     }}
-                                                    className="text-green-600 hover:text-green-800"
+                                                    className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded flex items-center justify-center mx-auto"
                                                     title="Marcar todos como tomados"
                                                 >
-                                                    ✓
+                                                    <CheckCircle2 className="w-4 h-4" />
                                                 </button>
                                             </td>
                                         )}
                                     </tr>
 
-                                    {/* Exámenes expandibles */}
+                                    {/* Exámenes expandibles con checkbox */}
                                     {expandedPatient === patient.id && (
                                         <tr>
                                             <td colSpan="100%" className="px-0 py-0 bg-gray-50">
@@ -253,13 +385,22 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                         {exam.nombre}
                                                                     </span>
                                                                 </div>
-                                                                {filtroActual !== 'tomadas' && !exam.tomado && (
-                                                                    <button
-                                                                        onClick={() => markExamsTaken(patient, index)}
-                                                                        className="text-green-600 hover:text-green-800 px-2 py-1 rounded"
-                                                                    >
-                                                                        Marcar como tomado
-                                                                    </button>
+                                                                {filtroActual !== 'tomadas' && (
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={exam.tomado || false}
+                                                                            onChange={(e) => {
+                                                                                e.stopPropagation(); // Detener propagación
+                                                                                markExamsTaken(patient, index);
+                                                                            }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                                                                        />
+                                                                        <label className="text-sm text-gray-600">
+                                                                            {exam.tomado ? 'Tomado' : 'Pendiente'}
+                                                                        </label>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         ))}
@@ -272,6 +413,9 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                             ))}
                         </tbody>
                     </table>
+
+                    {/* Controles de paginación */}
+                    <PaginationControls />
                 </div>
             )}
         </div>

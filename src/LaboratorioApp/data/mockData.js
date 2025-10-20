@@ -1,4 +1,4 @@
-// mockData.js - Datos de prueba para simulación
+// data/mockData.js
 export const mockPatients = {
   urgentes: [
     {
@@ -23,8 +23,8 @@ export const mockPatients = {
       ingreso: "20241017002",
       folio: "F240002",
       cama: "102B",
-      cantidadExamenes: 8,
-      cantidadPendientes: 8,
+      cantidadExamenes: 5,
+      cantidadPendientes: 5,
       fechaSolicitud: "2024-10-17T08:15:00Z",
       areaSolicitante: "URGENCIAS",
       prioridad: "urgentes",
@@ -161,7 +161,7 @@ export const mockPatients = {
     },
     {
       id: "rut_005",
-      historia: "10203040",
+      historia: "10203040", // Esta es la historia que se muestra en tu imagen
       paciente: "MENDEZ AGUIRRE, JULIAN ALBERTO",
       edad: 56,
       ingreso: "20241015005",
@@ -176,90 +176,85 @@ export const mockPatients = {
   ],
 };
 
-// Datos de exámenes específicos por paciente
+// Datos de exámenes específicos por historia
 export const mockPatientExams = {
-  urg_001: [
+  12345678: [
     { id: "ex_001", nombre: "HEMOGRAMA COMPLETO", tomado: false },
     { id: "ex_002", nombre: "GLICEMIA", tomado: false },
     { id: "ex_003", nombre: "CREATININA", tomado: false },
     { id: "ex_004", nombre: "TROPONINA I", tomado: false },
     { id: "ex_005", nombre: "GASES ARTERIALES", tomado: false },
   ],
-  urg_002: [
-    { id: "ex_006", nombre: "HEMOGRAMA COMPLETO", tomado: false },
-    { id: "ex_007", nombre: "PERFIL LIPÍDICO", tomado: false },
-    { id: "ex_008", nombre: "TRANSAMINASAS", tomado: false },
-    { id: "ex_009", nombre: "BILIRRUBINAS", tomado: false },
-    { id: "ex_010", nombre: "PCR ULTRASENSIBLE", tomado: false },
-    { id: "ex_011", nombre: "AMILASA", tomado: false },
-    { id: "ex_012", nombre: "LIPASA", tomado: false },
-    { id: "ex_013", nombre: "DÍMERO D", tomado: false },
+  87654321: [
+    { id: "ex_006", nombre: "PERFIL LIPÍDICO", tomado: false },
+    { id: "ex_007", nombre: "TRANSAMINASAS", tomado: false },
+    { id: "ex_008", nombre: "BILIRRUBINAS", tomado: false },
+    { id: "ex_009", nombre: "PCR ULTRASENSIBLE", tomado: false },
+    { id: "ex_010", nombre: "HEMOGRAMA COMPLETO", tomado: false },
   ],
-  urg_003: [
-    { id: "ex_014", nombre: "UROANÁLISIS", tomado: false },
-    { id: "ex_015", nombre: "BUN", tomado: false },
-    { id: "ex_016", nombre: "ELECTROLITOS", tomado: false },
+  11223344: [
+    { id: "ex_011", nombre: "UROANÁLISIS", tomado: false },
+    { id: "ex_012", nombre: "BUN", tomado: false },
+    { id: "ex_013", nombre: "ELECTROLITOS", tomado: false },
   ],
-  pri_001: [
-    { id: "ex_017", nombre: "HEMOGRAMA COMPLETO", tomado: false },
-    { id: "ex_018", nombre: "GLICEMIA BASAL", tomado: false },
-    { id: "ex_019", nombre: "HBA1C", tomado: false },
-    { id: "ex_020", nombre: "PERFIL RENAL", tomado: false },
-    { id: "ex_021", nombre: "PERFIL HEPÁTICO", tomado: false },
-    { id: "ex_022", nombre: "TSH", tomado: false },
+  55667788: [
+    { id: "ex_014", nombre: "HEMOGRAMA COMPLETO", tomado: false },
+    { id: "ex_015", nombre: "GLICEMIA BASAL", tomado: false },
+    { id: "ex_016", nombre: "HBA1C", tomado: false },
+    { id: "ex_017", nombre: "PERFIL RENAL", tomado: false },
+    { id: "ex_018", nombre: "PERFIL HEPÁTICO", tomado: false },
+    { id: "ex_019", nombre: "TSH", tomado: false },
   ],
-  pri_002: [
-    { id: "ex_023", nombre: "TROPONINA I", tomado: false },
-    { id: "ex_024", nombre: "CK-MB", tomado: false },
-    { id: "ex_025", nombre: "BNP", tomado: false },
-    { id: "ex_026", nombre: "DÍMERO D", tomado: false },
+  99887766: [
+    { id: "ex_020", nombre: "TROPONINA I", tomado: false },
+    { id: "ex_021", nombre: "CK-MB", tomado: false },
+    { id: "ex_022", nombre: "BNP", tomado: false },
+    { id: "ex_023", nombre: "DÍMERO D", tomado: false },
   ],
-  pri_003: [
-    { id: "ex_027", nombre: "CREATININA", tomado: false },
-    { id: "ex_028", nombre: "BUN", tomado: false },
-    { id: "ex_029", nombre: "ELECTROLITOS", tomado: false },
-    { id: "ex_030", nombre: "CALCIO SÉRICO", tomado: false },
-    { id: "ex_031", nombre: "FÓSFORO", tomado: false },
-    { id: "ex_032", nombre: "PARATOHORMONA", tomado: false },
-    { id: "ex_033", nombre: "ALBÚMINA", tomado: false },
+  44556677: [
+    { id: "ex_024", nombre: "CREATININA", tomado: false },
+    { id: "ex_025", nombre: "BUN", tomado: false },
+    { id: "ex_026", nombre: "ELECTROLITOS", tomado: false },
+    { id: "ex_027", nombre: "CALCIO SÉRICO", tomado: false },
+    { id: "ex_028", nombre: "FÓSFORO", tomado: false },
+    { id: "ex_029", nombre: "PARATOHORMONA", tomado: false },
+    { id: "ex_030", nombre: "ALBÚMINA", tomado: false },
   ],
-  pri_004: [
-    { id: "ex_034", nombre: "BHCG CUANTITATIVA", tomado: false },
-    { id: "ex_035", nombre: "HEMOGRAMA", tomado: false },
+  33445566: [
+    { id: "ex_031", nombre: "BHCG CUANTITATIVA", tomado: false },
+    { id: "ex_032", nombre: "HEMOGRAMA", tomado: false },
   ],
-  rut_001: [
-    { id: "ex_036", nombre: "COLESTEROL TOTAL", tomado: false },
-    { id: "ex_037", nombre: "TRIGLICÉRIDOS", tomado: false },
-    { id: "ex_038", nombre: "GLICEMIA", tomado: false },
+  22334455: [
+    { id: "ex_033", nombre: "COLESTEROL TOTAL", tomado: false },
+    { id: "ex_034", nombre: "TRIGLICÉRIDOS", tomado: false },
+    { id: "ex_035", nombre: "GLICEMIA", tomado: false },
   ],
-  rut_002: [
-    { id: "ex_039", nombre: "TSH", tomado: false },
-    { id: "ex_040", nombre: "T4 LIBRE", tomado: false },
-    { id: "ex_041", nombre: "GLICEMIA BASAL", tomado: false },
-    { id: "ex_042", nombre: "HBA1C", tomado: false },
-    { id: "ex_043", nombre: "INSULINA BASAL", tomado: false },
+  66778899: [
+    { id: "ex_036", nombre: "TSH", tomado: false },
+    { id: "ex_037", nombre: "T4 LIBRE", tomado: false },
+    { id: "ex_038", nombre: "GLICEMIA BASAL", tomado: false },
+    { id: "ex_039", nombre: "HBA1C", tomado: false },
+    { id: "ex_040", nombre: "INSULINA BASAL", tomado: false },
   ],
-  rut_003: [
-    { id: "ex_044", nombre: "HEMOGRAMA", tomado: false },
-    { id: "ex_045", nombre: "VSG", tomado: false },
-    { id: "ex_046", nombre: "PCR", tomado: false },
-    { id: "ex_047", nombre: "CALCIO SÉRICO", tomado: false },
+  77889900: [
+    { id: "ex_041", nombre: "HEMOGRAMA", tomado: false },
+    { id: "ex_042", nombre: "VSG", tomado: false },
+    { id: "ex_043", nombre: "PCR", tomado: false },
+    { id: "ex_044", nombre: "CALCIO SÉRICO", tomado: false },
   ],
-  rut_004: [
-    { id: "ex_048", nombre: "HEMOGRAMA", tomado: false },
-    { id: "ex_049", nombre: "PERFIL ALÉRGICO", tomado: false },
+  88990011: [
+    { id: "ex_045", nombre: "HEMOGRAMA", tomado: false },
+    { id: "ex_046", nombre: "PERFIL ALÉRGICO", tomado: false },
   ],
-  rut_005: [
-    { id: "ex_050", nombre: "AMILASA", tomado: false },
-    { id: "ex_051", nombre: "LIPASA", tomado: false },
-    { id: "ex_052", nombre: "BILIRRUBINAS", tomado: false },
-    { id: "ex_053", nombre: "TRANSAMINASAS", tomado: false },
-    { id: "ex_054", nombre: "FOSFATASA ALCALINA", tomado: false },
-    { id: "ex_055", nombre: "GAMMA GT", tomado: false },
+  10203040: [
+    { id: "ex_047", nombre: "AMILASA", tomado: false },
+    { id: "ex_048", nombre: "LIPASA", tomado: false },
+    { id: "ex_049", nombre: "BILIRRUBINAS", tomado: false },
+    { id: "ex_050", nombre: "TRANSAMINASAS", tomado: false },
+    { id: "ex_051", nombre: "FOSFATASA ALCALINA", tomado: false },
+    { id: "ex_052", nombre: "GAMMA GT", tomado: false },
   ],
 };
-
-// Datos de exámenes ya tomados para la pestaña "Tomadas"
 export const mockTakenExams = {
   urgentes: [
     {
@@ -270,11 +265,14 @@ export const mockTakenExams = {
       ingreso: "20241016005",
       folio: "F230005",
       cama: "105A",
+      nomCama: "105A",
       cantidadExamenes: 4,
-      fechaSolicitud: "2024-10-16T09:30:00Z",
-      fechaTomado: "2024-10-16T11:45:00Z",
+      fechaSolicitud: "2024-10-16T09:30:00",
+      fechaTomado: "2024-10-16T11:45:00",
       areaSolicitante: "URGENCIAS",
-      prioridad: "urgentes",
+      prioridad: "urgente",
+      responsable: "Sistema Web",
+      estadoResultado: "COMPLETADO",
     },
   ],
   prioritario: [
@@ -286,25 +284,14 @@ export const mockTakenExams = {
       ingreso: "20241015006",
       folio: "F220006",
       cama: "208B",
+      nomCama: "208B",
       cantidadExamenes: 3,
-      fechaSolicitud: "2024-10-15T16:20:00Z",
-      fechaTomado: "2024-10-16T08:30:00Z",
+      fechaSolicitud: "2024-10-15T16:20:00",
+      fechaTomado: "2024-10-16T08:30:00",
       areaSolicitante: "CARDIOLOGÍA",
-      prioridad: "prioritario",
-    },
-    {
-      id: "taken_004",
-      historia: "13579246",
-      paciente: "VÁSQUEZ CRUZ, FERNANDO JOSÉ",
-      edad: 54,
-      ingreso: "20241014002",
-      folio: "F210002",
-      cama: "210A",
-      cantidadExamenes: 6,
-      fechaSolicitud: "2024-10-14T11:30:00Z",
-      fechaTomado: "2024-10-15T09:00:00Z",
-      areaSolicitante: "MEDICINA INTERNA",
-      prioridad: "prioritario",
+      prioridad: "prioritaria",
+      responsable: "Sistema Web",
+      estadoResultado: "COMPLETADO",
     },
   ],
   rutinario: [
@@ -316,11 +303,14 @@ export const mockTakenExams = {
       ingreso: "20241014001",
       folio: "F210001",
       cama: "312A",
+      nomCama: "312A",
       cantidadExamenes: 2,
-      fechaSolicitud: "2024-10-14T14:00:00Z",
-      fechaTomado: "2024-10-15T10:15:00Z",
+      fechaSolicitud: "2024-10-14T14:00:00",
+      fechaTomado: "2024-10-15T10:15:00",
       areaSolicitante: "GINECOLOGÍA",
       prioridad: "rutinario",
+      responsable: "Sistema Web",
+      estadoResultado: "COMPLETADO",
     },
   ],
 };
