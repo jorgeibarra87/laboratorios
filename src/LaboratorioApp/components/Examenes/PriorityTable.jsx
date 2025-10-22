@@ -20,8 +20,10 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
         refetch,
         patientExams,
         loadPatientExams,
-        markExamsTaken,
-        // Paginación
+        //markExamsTaken,
+        markExamAsPending,
+        completarExamen,
+        marcarComoPendiente,
         currentPage,
         totalElements,
         totalPages,
@@ -337,28 +339,44 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         </td>
                                         <td className="px-4 py-3">{patient.edad}</td>
                                         <td className="px-4 py-3 text-blue-600">{patient.ingreso}</td>
-                                        <td className="px-4 py-3 text-purple-600">{patient.folio}</td>
+                                        <td className="px-4 py-3 text-cyan-600">{patient.folio}</td>
                                         <td className="px-4 py-3">{patient.cama}</td>
                                         <td className="px-4 py-3">
-                                            {filtroActual === 'tomadas' ?
-                                                `${patient.cantidadExamenes} completados` :
-                                                `${patient.cantidadPendientes || patient.cantidadExamenes} pendientes`
-                                            }
+                                            {filtroActual === 'actuales' && patient.cantidadExamenes}
+                                            {filtroActual === 'pendientes' && `${patient.cantidadExamenes} pendientes`}
+                                            {filtroActual === 'tomadas' && `${patient.cantidadExamenes || 1} completados`}
                                         </td>
                                         <td className="px-4 py-3">{formatDate(patient.fechaSolicitud)}</td>
                                         {filtroActual === 'tomadas' && (
                                             <td className="px-4 py-3">{formatDate(patient.fechaTomado)}</td>
                                         )}
                                         <td className="px-4 py-3 text-sm">{patient.areaSolicitante}</td>
-                                        {filtroActual !== 'tomadas' && (
+
+                                        {/* BOTONES DE ACCIÓN */}
+                                        {filtroActual === 'actuales' && (
                                             <td className="px-4 py-3 text-center">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        markExamsTaken(patient, 'all');
+                                                        markExamAsPending(patient, 'all');
+                                                    }}
+                                                    className="bg-yellow-50 hover:bg-yellow-100 text-yellow-500 px-2 py-1 rounded flex items-center justify-center mx-auto"
+                                                    title="Marcar todos como pendientes"
+                                                >
+                                                    📋
+                                                </button>
+                                            </td>
+                                        )}
+
+                                        {filtroActual === 'pendientes' && (
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        completarExamen(patient, 'all');
                                                     }}
                                                     className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded flex items-center justify-center mx-auto"
-                                                    title="Marcar todos como tomados"
+                                                    title="Marcar como completados"
                                                 >
                                                     <CheckCircle2 className="w-4 h-4" />
                                                 </button>
@@ -366,7 +384,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         )}
                                     </tr>
 
-                                    {/* Exámenes expandibles con checkbox */}
+                                    {/* Exámenes expandibles */}
                                     {expandedPatient === patient.id && (
                                         <tr>
                                             <td colSpan="100%" className="px-0 py-0 bg-gray-50">
@@ -381,24 +399,69 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                     <span className="w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs mr-3">
                                                                         {index + 1}
                                                                     </span>
-                                                                    <span className={exam.tomado ? 'line-through text-gray-500' : ''}>
+                                                                    <span className={
+                                                                        exam.estado === 'tomado' ? 'text-green-600 font-semibold' :
+                                                                            exam.estado === 'pendiente' ? 'text-yellow-600' :
+                                                                                ''
+                                                                    }>
                                                                         {exam.nombre}
+                                                                        {exam.estado === 'tomado' && ' ✓'}
+                                                                        {exam.estado === 'pendiente' && ' 📋'}
                                                                     </span>
                                                                 </div>
-                                                                {filtroActual !== 'tomadas' && (
+
+                                                                {/* INPUTS */}
+                                                                {filtroActual === 'actuales' && (
                                                                     <div className="flex items-center space-x-2">
                                                                         <input
                                                                             type="checkbox"
-                                                                            checked={exam.tomado || false}
+                                                                            checked={exam.estado === 'pendiente'}
                                                                             onChange={(e) => {
-                                                                                e.stopPropagation(); // Detener propagación
-                                                                                markExamsTaken(patient, index);
+                                                                                e.stopPropagation();
+                                                                                markExamAsPending(patient, index);
                                                                             }}
                                                                             onClick={(e) => e.stopPropagation()}
-                                                                            className="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                                                                            className="w-4 h-4 text-yellow-600"
                                                                         />
                                                                         <label className="text-sm text-gray-600">
-                                                                            {exam.tomado ? 'Tomado' : 'Pendiente'}
+                                                                            {exam.estado === 'pendiente' ? 'Pendiente' :
+                                                                                exam.estado === 'tomado' ? 'Tomado' : 'Disponible'}
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+
+                                                                {filtroActual === 'pendientes' && (
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={false} // Siempre false para poder marcar
+                                                                            onChange={(e) => {
+                                                                                e.stopPropagation();
+                                                                                completarExamen(patient, index);
+                                                                            }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className="w-4 h-4 text-green-600"
+                                                                        />
+                                                                        <label className="text-sm text-gray-600">
+                                                                            Marcar como Tomado
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+
+                                                                {filtroActual === 'tomadas' && (
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={false}
+                                                                            onChange={(e) => {
+                                                                                e.stopPropagation();
+                                                                                marcarComoPendiente(patient, index);
+                                                                            }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className="w-4 h-4 text-yellow-600"
+                                                                        />
+                                                                        <label className="text-sm text-gray-600">
+                                                                            Volver a Pendiente
                                                                         </label>
                                                                     </div>
                                                                 )}
@@ -412,6 +475,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                 </React.Fragment>
                             ))}
                         </tbody>
+
                     </table>
 
                     {/* Controles de paginación */}

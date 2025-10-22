@@ -123,64 +123,6 @@ class SolicitudesService {
             }
         }
     }
-    // ===== MÉTODOS EXISTENTES =====
-    async getAllPacientesPaginados(endpoint, maxPages = 20) {
-        let allData = [];
-        let currentPage = 0;
-        let hasMoreData = true;
-        let totalPagesFound = null;
-
-        while (hasMoreData && currentPage < maxPages) {
-            try {
-                const response = await this.makeDinamicaRequest(`${endpoint}?page=${currentPage}&size=50`);
-
-                if (Array.isArray(response)) {
-                    allData = [...allData, ...response];
-                    hasMoreData = response.length === 50;
-                } else if (response.content && Array.isArray(response.content)) {
-                    allData = [...allData, ...response.content];
-                    hasMoreData = !response.last;
-                    totalPagesFound = response.totalPages;
-                } else {
-                    console.warn('⚠️ Formato de respuesta desconocido:', response);
-                    break;
-                }
-
-                currentPage++;
-
-                if (hasMoreData) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-
-            } catch (error) {
-                console.error(`❌ Error en página ${currentPage + 1} de ${endpoint}:`, error);
-                break;
-            }
-        }
-
-        return allData;
-    }
-
-    async getTodosLosPacientesPorPrioridad() {
-        try {
-            const [urgentes, prioritarios, rutinarios] = await Promise.all([
-                this.getResumenPacientesUrgentes(),
-                this.getResumenPacientesPrioritarios(),
-                this.getResumenPacientesRutinarios()
-            ]);
-
-            const totalRegistros = urgentes.length + prioritarios.length + rutinarios.length;
-
-            return {
-                urgentes: urgentes || [],
-                prioritarios: prioritarios || [],
-                rutinarios: rutinarios || []
-            };
-        } catch (error) {
-            console.error('❌ Error obteniendo pacientes por prioridad:', error);
-            throw error;
-        }
-    }
 
     // ===== MÉTODOS PARA BACKEND LOCAL =====
     async makeLocalRequest(endpoint, options = {}) {

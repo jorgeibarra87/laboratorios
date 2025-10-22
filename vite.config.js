@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), svgr(), tailwindcss()],
   server: {
     host: "0.0.0.0", // permite acceso desde otras IPs
-    port: 5173, // puerto del servidor
+    port: 5175, // puerto del servidor
     proxy: {
       "/hcnSolExa": {
         target: "http://192.168.16.160:8002",

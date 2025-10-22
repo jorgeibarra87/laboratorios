@@ -38,9 +38,13 @@ class ExamenesTomadosService {
 
     // Obtener todos los exámenes tomados
     async getExamenesTomados() {
-        return await this.makeLocalRequest('/examenes-tomados');
+        try {
+            return await this.makeLocalRequest('/examenes-tomados');
+        } catch (error) {
+            console.warn('Backend local no disponible, usando array vacío');
+            return []; // Fallback a array vacío si backend local no está disponible
+        }
     }
-
     // Crear examen tomado
     async crearExamenTomado(examenData) {
         return await this.makeLocalRequest('/examenes-tomados', {
@@ -59,7 +63,57 @@ class ExamenesTomadosService {
 
     // Obtener exámenes por historia
     async getExamenesPorHistoria(historia) {
-        return await this.makeLocalRequest(`/examenes-tomados/historia/${historia}`);
+        try {
+            return await this.makeLocalRequest(`/examenes-tomados/historia/${historia}`);
+        } catch (error) {
+            console.warn('Backend local no disponible para historia:', historia);
+            return [];
+        }
+    }
+
+    // Nuevo método para completar examen
+    async completarExamen(examenId) {
+        return await this.makeLocalRequest(`/examenes-tomados/${examenId}/completar`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'resultado=COMPLETADO&responsable=Sistema Web'
+        });
+    }
+
+    // Método para obtener pendientes
+    async getExamenesPendientes() {
+        return await this.makeLocalRequest('/examenes-tomados/pendientes');
+    }
+
+    async crearExamenPendiente(examenData) {
+        const payload = {
+            ...examenData,
+            estadoResultado: 'PENDIENTE',
+            fechaPendiente: new Date().toISOString(),
+        };
+
+        return await this.makeLocalRequest('/examenes-tomados', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+
+    // método para actualizar examen existente
+    async actualizarExamen(examenId, data) {
+        console.log('Actualizando examen ID:', examenId, 'con data:', data); // Debug
+        return await this.makeLocalRequest(`/examenes-tomados/${examenId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    }
+
+    // método para eliminar examen
+    async eliminarExamen(examenId) {
+        return await this.makeLocalRequest(`/examenes-tomados/${examenId}`, {
+            method: 'DELETE'
+        });
     }
 }
 

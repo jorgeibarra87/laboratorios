@@ -315,11 +315,11 @@ export const mockTakenExams = {
   ],
 };
 
-// Función para simular delay de API
+/* // Función para simular delay de API
 export const mockApiDelay = (ms = 1000) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
 // Flag para activar/desactivar el modo mock
 export const USE_MOCK_DATA =
-  import.meta.env.VITE_APP_USE_MOCK_DATA === "true" || false;
+  import.meta.env.VITE_APP_USE_MOCK_DATA === "true" || false; */

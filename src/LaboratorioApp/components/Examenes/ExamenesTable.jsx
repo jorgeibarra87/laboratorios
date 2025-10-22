@@ -21,6 +21,15 @@ const ExamenesTable = () => {
                         Actuales
                     </button>
                     <button
+                        onClick={() => setFiltroActual('pendientes')}
+                        className={`px-6 py-2 text-sm font-medium ${filtroActual === 'pendientes'
+                            ? 'bg-yellow-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                    >
+                        Pendientes
+                    </button>
+                    <button
                         onClick={() => setFiltroActual('tomadas')}
                         className={`px-6 py-2 rounded-r text-sm font-medium flex items-center ${filtroActual === 'tomadas' ?
                             'bg-green-600 text-white' :
