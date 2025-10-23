@@ -113,7 +113,6 @@ class SolicitudesService {
             const exams = mockPatientExams[historia];
 
             if (exams && exams.length > 0) {
-                console.log('✅ Encontrados', exams.length, 'exámenes para historia', historia);
                 return exams;
             } else {
                 console.log('❌ No se encontraron exámenes para historia', historia);
