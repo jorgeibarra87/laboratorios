@@ -1,4 +1,4 @@
-// PriorityTable.jsx
+// PrioridadTable.jsx
 import React, { useState } from 'react';
 import {
     RefreshCw, Search, X, CheckCircle2, TestTube, ChevronDown, ChevronRight,
@@ -8,7 +8,7 @@ import {
 import { usePrioridadData } from '../../hook/usePrioridadData';
 import ObservacionesModal from './ObservacionesModal';
 
-const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
+const PrioridadTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
     const [filters, setFilters] = useState({
         historia: '', paciente: '', ingreso: '', folio: '', area: ''
     });
@@ -530,4 +530,4 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
     );
 };
 
-export default PriorityTable;
+export default PrioridadTable;
