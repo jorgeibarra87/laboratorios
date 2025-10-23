@@ -34,3 +34,11 @@
 .grid-cols-16 {
   grid-template-columns: repeat(16, minmax(0, 1fr));
 }
+
+.sidebar {
+  z-index: 30; /* Asegurar que sidebar esté por encima del contenido normal */
+}
+
+.header {
+  z-index: 30; /* Asegurar que header esté por encima del contenido normal */
+}

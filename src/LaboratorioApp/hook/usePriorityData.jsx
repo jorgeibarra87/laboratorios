@@ -40,6 +40,7 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
                     areaSolicitante: examen.areaSolicitante,
                     prioridad: examen.prioridad,
                     fechaSolicitud: examen.fechaSolicitud,
+                    fechaPendiente: examen.fechaPendiente,
                     fechaTomado: examen.fechaTomado,
                     responsable: examen.responsable,
                     cantidadExamenes: 0,
@@ -51,8 +52,18 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
             pacientesAgrupados[historia].examenes.push({
                 nombre: examen.nomServicio,
                 codigo: examen.codServicio,
-                fechaTomado: examen.fechaTomado
+                fechaPendiente: examen.fechaPendiente,
+                fechaTomado: examen.fechaTomado,
+                observaciones: examen.observaciones
             });
+
+            if (estado === 'PENDIENTE' && examen.fechaPendiente) {
+                // Tomar la fecha más reciente si hay múltiples exámenes
+                if (!pacientesAgrupados[historia].fechaPendiente ||
+                    new Date(examen.fechaPendiente) > new Date(pacientesAgrupados[historia].fechaPendiente)) {
+                    pacientesAgrupados[historia].fechaPendiente = examen.fechaPendiente;
+                }
+            }
         });
 
         return Object.values(pacientesAgrupados);
@@ -119,33 +130,112 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
         setError(null);
 
         try {
-            let response;
+            // 🔥 INICIALIZAR response con valores por defecto
+            let response = {
+                content: [],
+                totalElements: 0,
+                totalPages: 0
+            };
 
             if (filtroActual === 'actuales') {
                 // ACTUALES: Solo pacientes de API externa
+                let solicitudesData;
+
                 if (prioridad === 'urgentes') {
-                    response = await SolicitudesService.getResumenPacientesUrgentes(page, pageSize);
+                    solicitudesData = await SolicitudesService.getResumenPacientesUrgentes(page, pageSize);
                 } else if (prioridad === 'prioritario') {
-                    response = await SolicitudesService.getResumenPacientesPrioritarios(page, pageSize);
+                    solicitudesData = await SolicitudesService.getResumenPacientesPrioritarios(page, pageSize);
                 } else {
-                    response = await SolicitudesService.getResumenPacientesRutinarios(page, pageSize);
+                    solicitudesData = await SolicitudesService.getResumenPacientesRutinarios(page, pageSize);
                 }
 
-            } else if (filtroActual === 'pendientes') {
-                // PENDIENTES: Solo de base local con estadoResultado PENDIENTE
-                const allData = await ExamenesTomadosService.getExamenesTomados();
-                const pacientesAgrupados = agruparPorPaciente(allData, 'PENDIENTE');
-                const filtrados = filtrarPorPrioridad(pacientesAgrupados, prioridad);
+                const content = solicitudesData.content || solicitudesData || [];
 
-                response = crearRespuestaPaginada(filtrados, page, pageSize);
+                // 🔥 FILTRAR pacientes que YA NO tienen exámenes disponibles
+                const pacientesConExamenesDisponibles = [];
+
+                for (let patient of content) {
+                    try {
+                        // Obtener exámenes de API externa para este paciente
+                        const examsFromAPI = await SolicitudesService.getExamenesPaciente(patient.historia);
+
+                        // Obtener exámenes procesados localmente
+                        const allLocal = await ExamenesTomadosService.getExamenesPorHistoria(patient.historia);
+                        const tomados = allLocal.filter(e => e.estadoResultado === 'COMPLETADO');
+                        const pendientes = allLocal.filter(e => e.estadoResultado === 'PENDIENTE');
+
+                        // Verificar si tiene al menos UN examen disponible
+                        const tieneExamenesDisponibles = examsFromAPI.some(exam => {
+                            const estado = getExamStatus(exam.nombre, tomados, pendientes);
+                            return estado === 'disponible';
+                        });
+
+                        if (tieneExamenesDisponibles) {
+                            // Actualizar contador de exámenes disponibles
+                            const examenesDisponibles = examsFromAPI.filter(exam => {
+                                const estado = getExamStatus(exam.nombre, tomados, pendientes);
+                                return estado === 'disponible';
+                            }).length;
+
+                            pacientesConExamenesDisponibles.push({
+                                ...patient,
+                                cantidadExamenes: examenesDisponibles // 🔥 Solo contar disponibles
+                            });
+                        }
+                        // Si no tiene exámenes disponibles, NO se agrega a la lista
+
+                    } catch (error) {
+                        console.warn(`Error verificando exámenes para paciente ${patient.historia}:`, error);
+                        // En caso de error, incluir el paciente para no perder datos
+                        pacientesConExamenesDisponibles.push(patient);
+                    }
+                }
+
+                console.log(`📊 Filtrado: ${content.length} → ${pacientesConExamenesDisponibles.length} pacientes con exámenes disponibles`);
+
+                response = {
+                    content: pacientesConExamenesDisponibles,
+                    totalElements: pacientesConExamenesDisponibles.length,
+                    totalPages: Math.ceil(pacientesConExamenesDisponibles.length / pageSize)
+                };
+
+            } else if (filtroActual === 'pendientes') {
+                try {
+                    const allData = await ExamenesTomadosService.getExamenesTomados();
+                    console.log('📊 Datos pendientes obtenidos:', allData?.length || 0);
+
+                    const pacientesAgrupados = agruparPorPaciente(allData, 'PENDIENTE');
+                    console.log('👥 Pacientes agrupados pendientes:', pacientesAgrupados?.length || 0);
+
+                    const filtrados = filtrarPorPrioridad(pacientesAgrupados, prioridad);
+                    console.log('🎯 Pacientes filtrados pendientes:', filtrados?.length || 0);
+
+                    response = crearRespuestaPaginada(filtrados, page, pageSize);
+                    console.log('📄 Response pendientes:', response);
+
+                } catch (error) {
+                    console.error('Error procesando pendientes:', error);
+                    // response ya tiene valores por defecto
+                }
 
             } else if (filtroActual === 'tomadas') {
-                // TOMADAS: Solo de base local con estadoResultado COMPLETADO  
-                const allData = await ExamenesTomadosService.getExamenesTomados();
-                const pacientesAgrupados = agruparPorPaciente(allData, 'COMPLETADO');
-                const filtrados = filtrarPorPrioridad(pacientesAgrupados, prioridad);
+                try {
+                    const allData = await ExamenesTomadosService.getExamenesTomados();
+                    console.log('📊 Datos tomadas obtenidos:', allData?.length || 0);
 
-                response = crearRespuestaPaginada(filtrados, page, pageSize);
+                    const pacientesAgrupados = agruparPorPaciente(allData, 'COMPLETADO');
+                    console.log('👥 Pacientes agrupados tomadas:', pacientesAgrupados?.length || 0);
+
+                    const filtrados = filtrarPorPrioridad(pacientesAgrupados, prioridad);
+                    console.log('🎯 Pacientes filtrados tomadas:', filtrados?.length || 0);
+
+                    response = crearRespuestaPaginada(filtrados, page, pageSize);
+                    console.log('📄 Response tomadas:', response);
+
+                } catch (error) {
+                    console.error('Error procesando tomadas:', error);
+                    // response ya tiene valores por defecto
+                }
             }
 
             setData(response.content || []);

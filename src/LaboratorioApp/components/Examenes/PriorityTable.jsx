@@ -33,7 +33,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
         refetch,
         patientExams,
         loadPatientExams,
-        //markExamsTaken,
         markExamAsPending,
         completarExamen,
         marcarComoPendiente,
@@ -177,14 +176,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                         <ChevronsRight className="w-4 h-4" />
                     </button>
                 </div>
-                {/* Modal */}
-                <ObservacionesModal
-                    isOpen={modalOpen}
-                    onClose={() => setModalOpen(false)}
-                    title={modalConfig.title}
-                    placeholder={modalConfig.placeholder}
-                    onConfirm={modalConfig.onConfirm}
-                />
             </div>
         );
     };
@@ -271,6 +262,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                 <th className="px-4 py-3 text-left">Exámenes</th>
                                 <th className="px-4 py-3 text-left">Fecha Solicitud</th>
                                 {filtroActual === 'tomadas' && <th className="px-4 py-3 text-left">Fecha Tomado</th>}
+                                {filtroActual === 'pendientes' && <th className="px-4 py-3 text-left">Fecha Pendiente</th>}
                                 <th className="px-4 py-3 text-left">Área</th>
                                 {filtroActual !== 'tomadas' && <th className="px-4 py-3 text-center">Acciones</th>}
                             </tr>
@@ -317,6 +309,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                 <td className="px-4 py-2 text-center text-gray-300">-</td>
                                 <td className="px-4 py-2 text-center text-gray-300">-</td>
                                 {filtroActual === 'tomadas' && <td className="px-4 py-2 text-center text-gray-300">-</td>}
+                                {filtroActual === 'pendientes' && <td className="px-4 py-2 text-center text-gray-300">-</td>}
                                 <td className="px-4 py-2">
                                     <input
                                         type="text"
@@ -368,6 +361,9 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                             {filtroActual === 'tomadas' && `${patient.cantidadExamenes || 1} tomados`}
                                         </td>
                                         <td className="px-4 py-3">{formatDate(patient.fechaSolicitud)}</td>
+                                        {filtroActual === 'pendientes' &&
+                                            <td className="px-4 py-3"> {patient.fechaPendiente ? formatDate(patient.fechaPendiente) : '-'}</td>
+                                        }
                                         {filtroActual === 'tomadas' && (
                                             <td className="px-4 py-3">{formatDate(patient.fechaTomado)}</td>
                                         )}
@@ -379,9 +375,10 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
+                                                        console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                         markExamAsPending(patient, 'all');
                                                     }}
-                                                    className="bg-yellow-50 hover:bg-yellow-100 text-yellow-500 px-2 py-1 rounded flex items-center justify-center mx-auto"
+                                                    className="bg-yellow-100 hover:bg-yellow-200 text-yellow-500 px-2 py-1 rounded flex items-center justify-center mx-auto"
                                                     title="Marcar todos como pendientes"
                                                 >
                                                     📌
@@ -394,6 +391,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
+                                                        console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                         completarExamen(patient, 'all');
                                                     }}
                                                     className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded flex items-center justify-center mx-auto"
@@ -442,6 +440,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                                     checked={false}
                                                                                     onChange={(e) => {
                                                                                         e.stopPropagation();
+                                                                                        console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                                                         markExamAsPending(patient, index);
                                                                                     }}
                                                                                     onClick={(e) => e.stopPropagation()}
@@ -477,6 +476,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                             checked={false} // Siempre false para poder marcar
                                                                             onChange={(e) => {
                                                                                 e.stopPropagation();
+                                                                                console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                                                 completarExamen(patient, index);
                                                                             }}
                                                                             onClick={(e) => e.stopPropagation()}
@@ -495,6 +495,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                             checked={false}
                                                                             onChange={(e) => {
                                                                                 e.stopPropagation();
+                                                                                console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                                                 marcarComoPendiente(patient, index);
                                                                             }}
                                                                             onClick={(e) => e.stopPropagation()}
@@ -522,6 +523,14 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                     <PaginationControls />
                 </div>
             )}
+            {/* Modal */}
+            <ObservacionesModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                title={modalConfig.title}
+                placeholder={modalConfig.placeholder}
+                onConfirm={modalConfig.onConfirm}
+            />
         </div>
     );
 };
