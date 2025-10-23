@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import SolicitudesService from '../Services/SolicitudesService';
 import ExamenesTomadosService from '../Services/ExamenesTomadosService';
 
-export const usePriorityData = (prioridad, filtroActual) => {
+export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
     const [data, setData] = useState([]);
     const [patientExams, setPatientExams] = useState({});
     const [loading, setLoading] = useState(false);
@@ -59,16 +59,37 @@ export const usePriorityData = (prioridad, filtroActual) => {
     }
 
     function filtrarPorPrioridad(pacientes, prioridad) {
-        return pacientes.filter(patient => {
+        console.log('🎯 Filtrando por prioridad:', prioridad);
+        console.log('📊 Pacientes antes del filtro:', pacientes);
+
+        const resultado = pacientes.filter(patient => {
             if (!patient.prioridad) return false;
             const patientPriority = patient.prioridad.toLowerCase();
 
-            if (prioridad === 'urgentes') return patientPriority.includes('urgente');
-            if (prioridad === 'prioritario') return patientPriority.includes('prioritaria');
-            if (prioridad === 'rutinario') return patientPriority.includes('rutinario');
+            console.log(`👤 Paciente ${patient.historia}: prioridad="${patientPriority}"`);
+
+            if (prioridad === 'urgentes') {
+                const match = patientPriority.includes('urgente');
+                console.log(`   🔍 Buscando "urgente" en "${patientPriority}": ${match}`);
+                return match;
+            }
+            if (prioridad === 'prioritario') {
+                // 🔥 CORREGIR: Buscar tanto "prioritaria" como "prioritario"  
+                const match = patientPriority.includes('prioritaria') || patientPriority.includes('prioritario');
+                console.log(`   🔍 Buscando "prioritaria/prioritario" en "${patientPriority}": ${match}`);
+                return match;
+            }
+            if (prioridad === 'rutinario') {
+                const match = patientPriority.includes('rutinario');
+                console.log(`   🔍 Buscando "rutinario" en "${patientPriority}": ${match}`);
+                return match;
+            }
 
             return false;
         });
+
+        console.log('✅ Pacientes después del filtro:', resultado);
+        return resultado;
     }
 
     function crearRespuestaPaginada(data, page, size) {
@@ -147,17 +168,55 @@ export const usePriorityData = (prioridad, filtroActual) => {
             const patient = data.find(p => p.id === patientId);
             const historia = patient?.historia;
 
+            console.log('🔍 LoadPatientExams - Filtro:', filtroActual, 'Historia:', historia, 'Patient:', patient);
+
             if (filtroActual === 'actuales') {
-                // ... código existente sin cambios
+                // 🔥 CORREGIR: Cargar exámenes de API externa
+                const exams = await SolicitudesService.getExamenesPaciente(historia);
+                console.log('📋 Exámenes de API externa:', exams);
+
+                if (!exams || exams.length === 0) {
+                    console.log('❌ No hay exámenes de API externa para historia', historia);
+                    setPatientExams(prev => ({ ...prev, [patientId]: [] }));
+                    return;
+                }
+
+                // Comparar con base local
+                const allLocal = await ExamenesTomadosService.getExamenesPorHistoria(historia);
+                console.log('📊 Exámenes locales encontrados:', allLocal);
+
+                const tomados = allLocal.filter(e => e.estadoResultado === 'COMPLETADO');
+                const pendientes = allLocal.filter(e => e.estadoResultado === 'PENDIENTE');
+
+                // Marcar estado de cada examen
+                const examsWithStatus = exams.map(exam => {
+                    const estado = getExamStatus(exam.nombre, tomados, pendientes);
+                    console.log(`🎯 Examen: ${exam.nombre} - Estado: ${estado}`);
+
+                    return {
+                        ...exam,
+                        estado: estado
+                    };
+                });
+
+                console.log('✅ Exámenes procesados para actuales:', examsWithStatus);
+
+                setPatientExams(prev => ({
+                    ...prev,
+                    [patientId]: examsWithStatus
+                }));
+
             } else {
-                // Para pendientes/tomadas, obtener datos reales de BD
+                // Para pendientes/tomadas - usar los exámenes ya agrupados
                 const allLocal = await ExamenesTomadosService.getExamenesPorHistoria(historia);
                 const filtroEstado = filtroActual === 'pendientes' ? 'PENDIENTE' : 'COMPLETADO';
                 const examenesDelPaciente = allLocal.filter(e => e.estadoResultado === filtroEstado);
 
+                console.log(`📋 Exámenes ${filtroActual}:`, examenesDelPaciente);
+
                 const examsWithStatus = examenesDelPaciente.map((exam, index) => ({
-                    id: exam.id, // ID real de la base de datos
-                    realId: exam.id, // ID para actualización
+                    id: exam.id,
+                    realId: exam.id,
                     nombre: exam.nomServicio,
                     codigo: exam.codServicio,
                     fechaTomado: exam.fechaTomado,
@@ -173,25 +232,54 @@ export const usePriorityData = (prioridad, filtroActual) => {
             }
 
         } catch (err) {
-            console.warn('Error loading patient exams:', err);
+            console.error('❌ Error loading patient exams:', err);
             setPatientExams(prev => ({ ...prev, [patientId]: [] }));
         }
     }, [data, filtroActual]);
 
     // MARCAR COMO PENDIENTE (Solo en actuales)
-    const markExamAsPending = useCallback(async (patient, examIndex, observaciones = '') => {
-        try {
-            // Función helper para pedir observaciones
-            const pedirObservaciones = () => {
-                return prompt('Observaciones (opcional):') || '';
-            };
+    const markExamAsPending = useCallback(async (patient, examIndex) => {
+        // Función para procesar con observaciones
+        const procesarConObservaciones = async (observaciones) => {
+            try {
+                if (examIndex === 'all') {
+                    const exams = patientExams[patient.id] || [];
+                    const disponibles = exams.filter(ex => ex.estado === 'disponible');
 
-            if (examIndex === 'all') {
-                const exams = patientExams[patient.id] || [];
-                const disponibles = exams.filter(ex => ex.estado === 'disponible');
-                const obs = pedirObservaciones();
+                    for (let exam of disponibles) {
+                        const payload = {
+                            historia: patient.historia,
+                            nomPaciente: patient.paciente,
+                            numeroIngreso: String(patient.ingreso),
+                            numeroFolio: String(patient.folio),
+                            codServicio: exam.id,
+                            nomServicio: exam.nombre,
+                            estadoResultado: 'PENDIENTE',
+                            fechaPendiente: new Date().toISOString(),
+                            edad: patient.edad,
+                            cama: patient.cama,
+                            nomCama: patient.cama,
+                            areaSolicitante: patient.areaSolicitante,
+                            prioridad: patient.prioridad,
+                            fechaSolicitud: patient.fechaSolicitud,
+                            responsable: 'Sistema Web',
+                            observaciones: observaciones
+                        };
 
-                for (let exam of disponibles) {
+                        await ExamenesTomadosService.crearExamenPendiente(payload);
+                    }
+
+                    // REFRESH
+                    await loadData(currentPage);
+
+                    // Limpiar exámenes expandidos para que se recarguen
+                    setPatientExams(prev => ({ ...prev, [patient.id]: undefined }));
+
+                } else {
+                    // Similar para individual
+                    const exam = patientExams[patient.id][examIndex];
+                    if (exam.estado !== 'disponible') return;
+
                     const payload = {
                         historia: patient.historia,
                         nomPaciente: patient.paciente,
@@ -200,7 +288,6 @@ export const usePriorityData = (prioridad, filtroActual) => {
                         codServicio: exam.id,
                         nomServicio: exam.nombre,
                         estadoResultado: 'PENDIENTE',
-                        // CORREGIR FECHA - fecha_pendiente, no fecha_tomado
                         fechaPendiente: new Date().toISOString(),
                         edad: patient.edad,
                         cama: patient.cama,
@@ -209,125 +296,109 @@ export const usePriorityData = (prioridad, filtroActual) => {
                         prioridad: patient.prioridad,
                         fechaSolicitud: patient.fechaSolicitud,
                         responsable: 'Sistema Web',
-                        observaciones: obs // Agregar observaciones
+                        observaciones: observaciones
                     };
 
                     await ExamenesTomadosService.crearExamenPendiente(payload);
+
+                    // REFRESH 
+                    await loadData(currentPage);
+                    setPatientExams(prev => ({ ...prev, [patient.id]: undefined }));
                 }
 
-                setPatientExams(prev => ({
-                    ...prev,
-                    [patient.id]: prev[patient.id].map(exam =>
-                        exam.estado === 'disponible' ? { ...exam, estado: 'pendiente' } : exam
-                    )
-                }));
-
-            } else {
-                const exam = patientExams[patient.id][examIndex];
-                if (exam.estado !== 'disponible') return;
-
-                const obs = observaciones || pedirObservaciones();
-
-                const payload = {
-                    historia: patient.historia,
-                    nomPaciente: patient.paciente,
-                    numeroIngreso: String(patient.ingreso),
-                    numeroFolio: String(patient.folio),
-                    codServicio: exam.id,
-                    nomServicio: exam.nombre,
-                    estadoResultado: 'PENDIENTE',
-                    // 🔥 CORREGIR FECHA
-                    fechaPendiente: new Date().toISOString(),
-                    edad: patient.edad,
-                    cama: patient.cama,
-                    nomCama: patient.cama,
-                    areaSolicitante: patient.areaSolicitante,
-                    prioridad: patient.prioridad,
-                    fechaSolicitud: patient.fechaSolicitud,
-                    responsable: 'Sistema Web',
-                    observaciones: obs
-                };
-
-                await ExamenesTomadosService.crearExamenPendiente(payload);
-
-                setPatientExams(prev => ({
-                    ...prev,
-                    [patient.id]: prev[patient.id].map((ex, idx) =>
-                        idx === examIndex ? { ...ex, estado: 'pendiente' } : ex
-                    )
-                }));
+            } catch (err) {
+                console.error('Error marking exam as pending:', err);
+                alert('Error al marcar como pendiente: ' + err.message);
             }
+        };
 
-        } catch (err) {
-            console.error('Error marking exam as pending:', err);
-            alert('Error al marcar como pendiente: ' + err.message);
-        }
-    }, [patientExams]);
+        // ABRIR MODAL
+        onOpenModal(
+            'Marcar como Pendiente',
+            'Observaciones para marcar como pendiente (opcional)...',
+            procesarConObservaciones
+        );
+
+    }, [patientExams, loadData, currentPage, onOpenModal]);
 
     // COMPLETAR EXAMEN (Solo en pendientes)
     const completarExamen = useCallback(async (patient, examIndex) => {
-        try {
-            const pedirObservaciones = () => {
-                const obs = prompt('Observaciones (opcional):');
-                return obs === null ? '' : obs;
-            };
+        const procesarConObservaciones = async (observaciones) => {
+            try {
+                if (examIndex === 'all') {
+                    const exams = patientExams[patient.id] || [];
+                    const pendientes = exams.filter(ex => ex.estado === 'pendiente');
 
-            if (examIndex === 'all') {
-                const exams = patientExams[patient.id] || [];
-                const pendientes = exams.filter(ex => ex.estado === 'pendiente');
-                const obs = pedirObservaciones();
+                    for (let exam of pendientes) {
+                        const payload = {
+                            historia: patient.historia,
+                            nomPaciente: patient.paciente,
+                            edad: patient.edad,
+                            numeroIngreso: patient.ingreso,
+                            numeroFolio: patient.folio,
+                            cama: patient.cama,
+                            nomCama: patient.cama,
+                            areaSolicitante: patient.areaSolicitante,
+                            prioridad: patient.prioridad,
+                            codServicio: exam.codigo,
+                            nomServicio: exam.nombre,
+                            fechaSolicitud: patient.fechaSolicitud,
+                            responsable: 'Sistema Web',
+                            estadoResultado: 'COMPLETADO',
+                            fechaTomado: new Date().toISOString(),
+                            observaciones: observaciones
+                        };
 
-                for (let exam of pendientes) {
-                    console.log('Completando examen ID:', exam.realId); // Debug
+                        await ExamenesTomadosService.actualizarExamenCompleto(exam.realId, payload);
+                    }
 
-                    // SOLO ACTUALIZAR - No eliminar
-                    await ExamenesTomadosService.actualizarExamen(exam.realId, {
+                    // REFRESH
+                    await loadData(currentPage);
+                    setPatientExams(prev => ({ ...prev, [patient.id]: undefined }));
+
+                } else {
+                    // Similar para individual
+                    const exam = patientExams[patient.id][examIndex];
+
+                    const payload = {
+                        historia: patient.historia,
+                        nomPaciente: patient.paciente,
+                        edad: patient.edad,
+                        numeroIngreso: patient.ingreso,
+                        numeroFolio: patient.folio,
+                        cama: patient.cama,
+                        nomCama: patient.cama,
+                        areaSolicitante: patient.areaSolicitante,
+                        prioridad: patient.prioridad,
+                        codServicio: exam.codigo,
+                        nomServicio: exam.nombre,
+                        fechaSolicitud: patient.fechaSolicitud,
+                        responsable: 'Sistema Web',
                         estadoResultado: 'COMPLETADO',
                         fechaTomado: new Date().toISOString(),
-                        observaciones: obs
-                    });
+                        observaciones: observaciones
+                    };
+
+                    await ExamenesTomadosService.actualizarExamenCompleto(exam.realId, payload);
+
+                    // REFRESH
+                    await loadData(currentPage);
+                    setPatientExams(prev => ({ ...prev, [patient.id]: undefined }));
                 }
-
-                // Actualizar UI
-                setPatientExams(prev => ({
-                    ...prev,
-                    [patient.id]: prev[patient.id].map(exam =>
-                        exam.estado === 'pendiente' ? { ...exam, estado: 'completado' } : exam
-                    )
-                }));
-
-                // USAR loadData en lugar de refetch
-                setTimeout(() => loadData(currentPage), 500);
-
-            } else {
-                // Completar examen individual
-                const exam = patientExams[patient.id][examIndex];
-                const obs = pedirObservaciones();
-
-                console.log('Completando examen individual ID:', exam.realId); // Debug
-
-                // SOLO ACTUALIZAR
-                await ExamenesTomadosService.actualizarExamen(exam.realId, {
-                    estadoResultado: 'COMPLETADO',
-                    fechaTomado: new Date().toISOString(),
-                    observaciones: obs
-                });
-
-                // Actualizar UI
-                setPatientExams(prev => ({
-                    ...prev,
-                    [patient.id]: prev[patient.id].map((ex, idx) =>
-                        idx === examIndex ? { ...ex, estado: 'completado' } : ex
-                    )
-                }));
-
-                setTimeout(() => loadData(currentPage), 500);
+            } catch (err) {
+                console.error('Error completando examen:', err);
+                alert('Error al completar examen: ' + err.message);
             }
-        } catch (err) {
-            console.error('Error completando examen:', err);
-            alert('Error al completar examen: ' + err.message);
-        }
-    }, [patientExams, loadData, currentPage]);
+        };
+
+        // ABRIR MODAL
+        onOpenModal(
+            'Completar Examen',
+            'Observaciones para completar examen (opcional)...',
+            procesarConObservaciones
+        );
+
+    }, [patientExams, loadData, currentPage, onOpenModal]);
 
     // función para volver a pendiente
     const marcarComoPendiente = useCallback(async (patient, examIndex) => {
@@ -343,7 +414,7 @@ export const usePriorityData = (prioridad, filtroActual) => {
                 const obs = pedirObservaciones();
 
                 for (let exam of tomados) {
-                    // SOLO ACTUALIZAR - No eliminar
+                    // ACTUALIZAR
                     await ExamenesTomadosService.actualizarExamen(exam.realId, {
                         estadoResultado: 'PENDIENTE',
                         fechaTomado: null, // Limpiar fecha_tomado
@@ -365,7 +436,7 @@ export const usePriorityData = (prioridad, filtroActual) => {
                 const exam = patientExams[patient.id][examIndex];
                 const obs = pedirObservaciones();
 
-                // SOLO ACTUALIZAR
+                // ACTUALIZAR
                 await ExamenesTomadosService.actualizarExamen(exam.realId, {
                     estadoResultado: 'PENDIENTE',
                     fechaTomado: null,

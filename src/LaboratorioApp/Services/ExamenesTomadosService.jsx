@@ -82,6 +82,15 @@ class ExamenesTomadosService {
         });
     }
 
+    async actualizarExamenCompleto(examenId, payloadCompleto) {
+        console.log('Actualizando examen ID:', examenId, 'con payload:', payloadCompleto);
+
+        return await this.makeLocalRequest(`/examenes-tomados/${examenId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payloadCompleto)
+        });
+    }
+
     // Método para obtener pendientes
     async getExamenesPendientes() {
         return await this.makeLocalRequest('/examenes-tomados/pendientes');
@@ -101,12 +110,41 @@ class ExamenesTomadosService {
     }
 
     // método para actualizar examen existente
-    async actualizarExamen(examenId, data) {
-        console.log('Actualizando examen ID:', examenId, 'con data:', data); // Debug
+    async actualizarExamen(examenId, updates) {
+        console.log('Actualizando examen ID:', examenId, 'con updates:', updates);
+
+        // primero obtener el registro actual para tener todos los datos
+        const examenActual = await this.getExamenById(examenId);
+
+        // Crear payload completo con todos los campos requeridos
+        const payload = {
+            historia: examenActual.historia,
+            nomPaciente: examenActual.nomPaciente,
+            edad: examenActual.edad,
+            numeroIngreso: examenActual.numeroIngreso,
+            numeroFolio: examenActual.numeroFolio,
+            cama: examenActual.cama,
+            nomCama: examenActual.nomCama,
+            areaSolicitante: examenActual.areaSolicitante,
+            prioridad: examenActual.prioridad,
+            codServicio: examenActual.codServicio,
+            nomServicio: examenActual.nomServicio,
+            fechaSolicitud: examenActual.fechaSolicitud,
+            responsable: examenActual.responsable,
+            ...updates
+        };
+
+        console.log('Payload completo para actualizar:', payload);
+
         return await this.makeLocalRequest(`/examenes-tomados/${examenId}`, {
             method: 'PUT',
-            body: JSON.stringify(data)
+            body: JSON.stringify(payload)
         });
+    }
+
+    // método para obtener examen por ID
+    async getExamenById(examenId) {
+        return await this.makeLocalRequest(`/examenes-tomados/${examenId}`);
     }
 
     // método para eliminar examen

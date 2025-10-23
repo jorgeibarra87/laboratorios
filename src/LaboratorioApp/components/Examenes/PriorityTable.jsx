@@ -6,12 +6,25 @@ import {
     Check
 } from 'lucide-react';
 import { usePriorityData } from '../../hook/usePriorityData';
+import ObservacionesModal from './ObservacionesModal';
 
 const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
     const [filters, setFilters] = useState({
         historia: '', paciente: '', ingreso: '', folio: '', area: ''
     });
     const [expandedPatient, setExpandedPatient] = useState(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalConfig, setModalConfig] = useState({
+        title: '',
+        placeholder: '',
+        onConfirm: null
+    });
+
+    // FUNCIÓN para abrir modal
+    const abrirModalObservaciones = (title, placeholder, onConfirm) => {
+        setModalConfig({ title, placeholder, onConfirm });
+        setModalOpen(true);
+    };
 
     const {
         data,
@@ -32,7 +45,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
         prevPage,
         hasNextPage,
         hasPrevPage
-    } = usePriorityData(prioridad, filtroActual);
+    } = usePriorityData(prioridad, filtroActual, abrirModalObservaciones);
 
     // Filtrar datos (solo afecta la página actual)
     const filteredData = data.filter(patient => {
@@ -164,6 +177,14 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                         <ChevronsRight className="w-4 h-4" />
                     </button>
                 </div>
+                {/* Modal */}
+                <ObservacionesModal
+                    isOpen={modalOpen}
+                    onClose={() => setModalOpen(false)}
+                    title={modalConfig.title}
+                    placeholder={modalConfig.placeholder}
+                    onConfirm={modalConfig.onConfirm}
+                />
             </div>
         );
     };
@@ -344,7 +365,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                         <td className="px-4 py-3">
                                             {filtroActual === 'actuales' && patient.cantidadExamenes}
                                             {filtroActual === 'pendientes' && `${patient.cantidadExamenes} pendientes`}
-                                            {filtroActual === 'tomadas' && `${patient.cantidadExamenes || 1} completados`}
+                                            {filtroActual === 'tomadas' && `${patient.cantidadExamenes || 1} tomados`}
                                         </td>
                                         <td className="px-4 py-3">{formatDate(patient.fechaSolicitud)}</td>
                                         {filtroActual === 'tomadas' && (
@@ -363,7 +384,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                     className="bg-yellow-50 hover:bg-yellow-100 text-yellow-500 px-2 py-1 rounded flex items-center justify-center mx-auto"
                                                     title="Marcar todos como pendientes"
                                                 >
-                                                    📋
+                                                    📌
                                                 </button>
                                             </td>
                                         )}
@@ -400,33 +421,52 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                         {index + 1}
                                                                     </span>
                                                                     <span className={
-                                                                        exam.estado === 'tomado' ? 'text-green-600 font-semibold' :
-                                                                            exam.estado === 'pendiente' ? 'text-yellow-600' :
+                                                                        exam.estado === 'tomado' ? 'text-green-600 font-semibold bg-green-100 px-1 line-through' :
+                                                                            exam.estado === 'pendiente' ? 'text-yellow-600 bg-yellow-100 px-1 line-through' :
                                                                                 ''
                                                                     }>
                                                                         {exam.nombre}
                                                                         {exam.estado === 'tomado' && ' ✓'}
-                                                                        {exam.estado === 'pendiente' && ' 📋'}
+                                                                        {exam.estado === 'pendiente' && ' 📌'}
                                                                     </span>
                                                                 </div>
 
                                                                 {/* INPUTS */}
                                                                 {filtroActual === 'actuales' && (
                                                                     <div className="flex items-center space-x-2">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={exam.estado === 'pendiente'}
-                                                                            onChange={(e) => {
-                                                                                e.stopPropagation();
-                                                                                markExamAsPending(patient, index);
-                                                                            }}
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                            className="w-4 h-4 text-yellow-600"
-                                                                        />
-                                                                        <label className="text-sm text-gray-600">
-                                                                            {exam.estado === 'pendiente' ? 'Pendiente' :
-                                                                                exam.estado === 'tomado' ? 'Tomado' : 'Disponible'}
-                                                                        </label>
+                                                                        {/* 🔥 MOSTRAR CHECKBOX solo si está disponible */}
+                                                                        {exam.estado === 'disponible' && (
+                                                                            <>
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={false}
+                                                                                    onChange={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        markExamAsPending(patient, index);
+                                                                                    }}
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                    className="w-4 h-4 text-yellow-600"
+                                                                                />
+                                                                                <label className="text-sm text-gray-600 cursor-pointer">
+                                                                                    Marcar como Pendiente
+                                                                                </label>
+                                                                            </>
+                                                                        )}
+
+                                                                        {/* solo texto si ya está pendiente o tomado */}
+                                                                        {exam.estado === 'pendiente' && (
+                                                                            <div className="flex items-center space-x-1">
+                                                                                <span className="text-yellow-600 text-sm">📌</span>
+                                                                                <span className="text-sm font-medium text-yellow-600">Pendiente</span>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {exam.estado === 'tomado' && (
+                                                                            <div className="flex items-center space-x-1">
+                                                                                <span className="text-green-600 text-sm">✔</span>
+                                                                                <span className="text-sm font-medium text-green-600">Tomado</span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
 
