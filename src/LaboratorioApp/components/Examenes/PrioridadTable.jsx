@@ -5,7 +5,7 @@ import {
     ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight,
     Check
 } from 'lucide-react';
-import { usePriorityData } from '../../hook/usePriorityData';
+import { usePrioridadData } from '../../hook/usePrioridadData';
 import ObservacionesModal from './ObservacionesModal';
 
 const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
@@ -44,7 +44,7 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
         prevPage,
         hasNextPage,
         hasPrevPage
-    } = usePriorityData(prioridad, filtroActual, abrirModalObservaciones);
+    } = usePrioridadData(prioridad, filtroActual, abrirModalObservaciones);
 
     // Filtrar datos (solo afecta la página actual)
     const filteredData = data.filter(patient => {
@@ -375,7 +375,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                         markExamAsPending(patient, 'all');
                                                     }}
                                                     className="bg-yellow-100 hover:bg-yellow-200 text-yellow-500 px-2 py-1 rounded flex items-center justify-center mx-auto"
@@ -391,7 +390,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                         completarExamen(patient, 'all');
                                                     }}
                                                     className="bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded flex items-center justify-center mx-auto"
@@ -440,7 +438,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                                     checked={false}
                                                                                     onChange={(e) => {
                                                                                         e.stopPropagation();
-                                                                                        console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                                                         markExamAsPending(patient, index);
                                                                                     }}
                                                                                     onClick={(e) => e.stopPropagation()}
@@ -476,7 +473,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                             checked={false} // Siempre false para poder marcar
                                                                             onChange={(e) => {
                                                                                 e.stopPropagation();
-                                                                                console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                                                 completarExamen(patient, index);
                                                                             }}
                                                                             onClick={(e) => e.stopPropagation()}
@@ -495,7 +491,6 @@ const PriorityTable = ({ prioridad, titulo, colorHeader, filtroActual }) => {
                                                                             checked={false}
                                                                             onChange={(e) => {
                                                                                 e.stopPropagation();
-                                                                                console.log('🔥 Clicking markExamAsPending para patient:', patient.historia);
                                                                                 marcarComoPendiente(patient, index);
                                                                             }}
                                                                             onClick={(e) => e.stopPropagation()}

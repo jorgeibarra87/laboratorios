@@ -1,9 +1,9 @@
-// hook/usePriorityData.js
+// hook/usePrioridadData.js
 import { useState, useEffect, useCallback } from 'react';
 import SolicitudesService from '../Services/SolicitudesService';
 import ExamenesTomadosService from '../Services/ExamenesTomadosService';
 
-export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
+export const usePrioridadData = (prioridad, filtroActual, onOpenModal) => {
     const [data, setData] = useState([]);
     const [patientExams, setPatientExams] = useState({});
     const [loading, setLoading] = useState(false);
@@ -15,7 +15,7 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
     const [totalElements, setTotalElements] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
-    // FUNCIONES HELPER (definidas antes de usarse)
+    // FUNCIONES
     function agruparPorPaciente(examenes, estado) {
         const pacientesAgrupados = {};
 
@@ -70,36 +70,26 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
     }
 
     function filtrarPorPrioridad(pacientes, prioridad) {
-        console.log('🎯 Filtrando por prioridad:', prioridad);
-        console.log('📊 Pacientes antes del filtro:', pacientes);
-
         const resultado = pacientes.filter(patient => {
             if (!patient.prioridad) return false;
             const patientPriority = patient.prioridad.toLowerCase();
 
-            console.log(`👤 Paciente ${patient.historia}: prioridad="${patientPriority}"`);
-
             if (prioridad === 'urgentes') {
                 const match = patientPriority.includes('urgente');
-                console.log(`   🔍 Buscando "urgente" en "${patientPriority}": ${match}`);
                 return match;
             }
             if (prioridad === 'prioritario') {
-                // 🔥 CORREGIR: Buscar tanto "prioritaria" como "prioritario"  
+                // Buscar tanto "prioritaria" como "prioritario"  
                 const match = patientPriority.includes('prioritaria') || patientPriority.includes('prioritario');
-                console.log(`   🔍 Buscando "prioritaria/prioritario" en "${patientPriority}": ${match}`);
                 return match;
             }
             if (prioridad === 'rutinario') {
                 const match = patientPriority.includes('rutinario');
-                console.log(`   🔍 Buscando "rutinario" en "${patientPriority}": ${match}`);
                 return match;
             }
 
             return false;
         });
-
-        console.log('✅ Pacientes después del filtro:', resultado);
         return resultado;
     }
 
@@ -130,7 +120,7 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
         setError(null);
 
         try {
-            // 🔥 INICIALIZAR response con valores por defecto
+            // INICIALIZAR response con valores por defecto
             let response = {
                 content: [],
                 totalElements: 0,
@@ -151,7 +141,7 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
 
                 const content = solicitudesData.content || solicitudesData || [];
 
-                // 🔥 FILTRAR pacientes que YA NO tienen exámenes disponibles
+                // FILTRAR pacientes que YA NO tienen exámenes disponibles
                 const pacientesConExamenesDisponibles = [];
 
                 for (let patient of content) {
@@ -191,8 +181,6 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
                     }
                 }
 
-                console.log(`📊 Filtrado: ${content.length} → ${pacientesConExamenesDisponibles.length} pacientes con exámenes disponibles`);
-
                 response = {
                     content: pacientesConExamenesDisponibles,
                     totalElements: pacientesConExamenesDisponibles.length,
@@ -202,39 +190,22 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
             } else if (filtroActual === 'pendientes') {
                 try {
                     const allData = await ExamenesTomadosService.getExamenesTomados();
-                    console.log('📊 Datos pendientes obtenidos:', allData?.length || 0);
-
                     const pacientesAgrupados = agruparPorPaciente(allData, 'PENDIENTE');
-                    console.log('👥 Pacientes agrupados pendientes:', pacientesAgrupados?.length || 0);
-
                     const filtrados = filtrarPorPrioridad(pacientesAgrupados, prioridad);
-                    console.log('🎯 Pacientes filtrados pendientes:', filtrados?.length || 0);
-
                     response = crearRespuestaPaginada(filtrados, page, pageSize);
-                    console.log('📄 Response pendientes:', response);
-
                 } catch (error) {
                     console.error('Error procesando pendientes:', error);
-                    // response ya tiene valores por defecto
                 }
 
             } else if (filtroActual === 'tomadas') {
                 try {
                     const allData = await ExamenesTomadosService.getExamenesTomados();
-                    console.log('📊 Datos tomadas obtenidos:', allData?.length || 0);
-
                     const pacientesAgrupados = agruparPorPaciente(allData, 'COMPLETADO');
-                    console.log('👥 Pacientes agrupados tomadas:', pacientesAgrupados?.length || 0);
-
                     const filtrados = filtrarPorPrioridad(pacientesAgrupados, prioridad);
-                    console.log('🎯 Pacientes filtrados tomadas:', filtrados?.length || 0);
-
                     response = crearRespuestaPaginada(filtrados, page, pageSize);
-                    console.log('📄 Response tomadas:', response);
 
                 } catch (error) {
                     console.error('Error procesando tomadas:', error);
-                    // response ya tiene valores por defecto
                 }
             }
 
@@ -258,38 +229,29 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
             const patient = data.find(p => p.id === patientId);
             const historia = patient?.historia;
 
-            console.log('🔍 LoadPatientExams - Filtro:', filtroActual, 'Historia:', historia, 'Patient:', patient);
-
             if (filtroActual === 'actuales') {
                 // 🔥 CORREGIR: Cargar exámenes de API externa
                 const exams = await SolicitudesService.getExamenesPaciente(historia);
-                console.log('📋 Exámenes de API externa:', exams);
 
                 if (!exams || exams.length === 0) {
-                    console.log('❌ No hay exámenes de API externa para historia', historia);
                     setPatientExams(prev => ({ ...prev, [patientId]: [] }));
                     return;
                 }
 
                 // Comparar con base local
                 const allLocal = await ExamenesTomadosService.getExamenesPorHistoria(historia);
-                console.log('📊 Exámenes locales encontrados:', allLocal);
-
                 const tomados = allLocal.filter(e => e.estadoResultado === 'COMPLETADO');
                 const pendientes = allLocal.filter(e => e.estadoResultado === 'PENDIENTE');
 
                 // Marcar estado de cada examen
                 const examsWithStatus = exams.map(exam => {
                     const estado = getExamStatus(exam.nombre, tomados, pendientes);
-                    console.log(`🎯 Examen: ${exam.nombre} - Estado: ${estado}`);
 
                     return {
                         ...exam,
                         estado: estado
                     };
                 });
-
-                console.log('✅ Exámenes procesados para actuales:', examsWithStatus);
 
                 setPatientExams(prev => ({
                     ...prev,
@@ -301,8 +263,6 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
                 const allLocal = await ExamenesTomadosService.getExamenesPorHistoria(historia);
                 const filtroEstado = filtroActual === 'pendientes' ? 'PENDIENTE' : 'COMPLETADO';
                 const examenesDelPaciente = allLocal.filter(e => e.estadoResultado === filtroEstado);
-
-                console.log(`📋 Exámenes ${filtroActual}:`, examenesDelPaciente);
 
                 const examsWithStatus = examenesDelPaciente.map((exam, index) => ({
                     id: exam.id,
@@ -398,7 +358,6 @@ export const usePriorityData = (prioridad, filtroActual, onOpenModal) => {
 
             } catch (err) {
                 console.error('Error marking exam as pending:', err);
-                alert('Error al marcar como pendiente: ' + err.message);
             }
         };
 

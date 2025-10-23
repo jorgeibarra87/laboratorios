@@ -1,7 +1,7 @@
 // ExamenesTable.jsx
 import React, { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import PriorityTable from './PriorityTable';
+import PriorityTable from './PrioridadTable';
 
 const ExamenesTable = () => {
     const [filtroActual, setFiltroActual] = useState('actuales');

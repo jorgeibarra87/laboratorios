@@ -90,7 +90,6 @@ class SolicitudesService {
 
     // Obtener exámenes específicos de un paciente
     async getExamenesPaciente(historia) {
-        console.log('🔍 Buscando exámenes para historia:', historia);
         try {
             // API REAL
             const response = await this.makeDinamicaRequest(`/hcnSolExa/paciente/${historia}/urgentes?documento=${historia}`);
@@ -108,7 +107,6 @@ class SolicitudesService {
             }
 
         } catch (error) {
-            console.log('🎭 Using mock data for exámenes, historia:', historia);
             await this.mockDelay(200);
 
             // MOCK DATA - búsqueda directa
