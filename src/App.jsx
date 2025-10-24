@@ -25,8 +25,6 @@ const App = () => {
         <main className="flex-1 overflow-y-auto relative">
           <Routes>
             <Route path="/" element={<ExamenesTable />} />
-            <Route path="/examenes" element={<ExamenesTable />} />
-            <Route path="/solicitudes" element={<ExamenesTable />} />
           </Routes>
         </main>
       </div>

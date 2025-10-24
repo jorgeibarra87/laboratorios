@@ -25,7 +25,7 @@ const Sidebar = () => {
             id: 'laboratorio',
             title: 'Laboratorio',
             subItems: [
-                { name: 'Examenes Laboratorio', route: '/examenes' },
+                { name: 'Examenes Laboratorio', route: '/' },
             ]
         }
     ];
