@@ -1,8 +1,15 @@
 // components/ObservacionesModal.jsx
 import React, { useState } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, CheckCircle2, ArrowLeft } from 'lucide-react';
 
-const ObservacionesModal = ({ isOpen, onClose, title, onConfirm, examName }) => {
+const ObservacionesModal = ({
+    isOpen,
+    onClose,
+    title,
+    onConfirm,
+    examName,
+    actionType = 'pending' // 'pending', 'completed', 'revert'
+}) => {
     const [observaciones, setObservaciones] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -27,10 +34,35 @@ const ObservacionesModal = ({ isOpen, onClose, title, onConfirm, examName }) => 
         onClose();
     };
 
+    // Configuración según el tipo de acción
+    const config = {
+        pending: {
+            icon: Save,
+            color: 'yellow',
+            buttonText: 'Marcar como Pendiente',
+            placeholder: 'Escribe observaciones sobre por qué se marca como pendiente...'
+        },
+        completed: {
+            icon: CheckCircle2,
+            color: 'green',
+            buttonText: 'Marcar como Tomado',
+            placeholder: 'Escribe observaciones sobre la toma del examen...'
+        },
+        revert: {
+            icon: ArrowLeft,
+            color: 'yellow',
+            buttonText: 'Volver a Pendiente',
+            placeholder: 'Escribe la razón para revertir a pendiente...'
+        }
+    };
+
+    const currentConfig = config[actionType];
+    const Icon = currentConfig.icon;
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
             <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">{title}</h3>
@@ -57,7 +89,7 @@ const ObservacionesModal = ({ isOpen, onClose, title, onConfirm, examName }) => 
                         <textarea
                             value={observaciones}
                             onChange={(e) => setObservaciones(e.target.value)}
-                            placeholder="Escribe observaciones sobre por qué se marca como pendiente..."
+                            placeholder={currentConfig.placeholder}
                             className="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                             rows="4"
                             disabled={loading}
@@ -76,7 +108,7 @@ const ObservacionesModal = ({ isOpen, onClose, title, onConfirm, examName }) => 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 flex items-center"
+                            className={`px-4 py-2 bg-${currentConfig.color}-600 text-white rounded-md hover:bg-${currentConfig.color}-700 disabled:opacity-50 flex items-center`}
                         >
                             {loading ? (
                                 <>
@@ -85,8 +117,8 @@ const ObservacionesModal = ({ isOpen, onClose, title, onConfirm, examName }) => 
                                 </>
                             ) : (
                                 <>
-                                    <Save className="w-4 h-4 mr-2" />
-                                    Marcar como Pendiente
+                                    <Icon className="w-4 h-4 mr-2" />
+                                    {currentConfig.buttonText}
                                 </>
                             )}
                         </button>

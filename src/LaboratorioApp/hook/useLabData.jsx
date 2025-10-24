@@ -27,9 +27,29 @@ export const useLabData = (priority, filter, pageSize = 10) => {
                 setTotalPages(result.totalPages || 0);
             } else {
                 // Para datos locales, usar LocalService
-                const localExams = await LocalService.getExamsByHistoria('all');
-                const filtered = filterLocalData(localExams, priority, filter);
-                const paginated = paginateLocal(filtered, page, pageSize);
+                console.log(`🔍 Cargando datos locales: ${filter} - ${priority}`);
+                const allLocalExams = await LocalService.getAllExams();
+
+                // Filtrar por estado y prioridad
+                const statusMap = {
+                    'pendientes': 'PENDIENTE',
+                    'tomadas': 'COMPLETADO'
+                };
+
+                const filteredExams = allLocalExams.filter(exam => {
+                    const matchesStatus = exam.estadoResultado === statusMap[filter];
+                    const matchesPriority = exam.prioridad?.toLowerCase() === priority.toLowerCase();
+                    console.log(`Examen ${exam.nomServicio}: estado=${exam.estadoResultado}, prioridad=${exam.prioridad}, matches=${matchesStatus && matchesPriority}`);
+                    return matchesStatus && matchesPriority;
+                });
+
+                console.log(`📊 Exámenes filtrados para ${filter}-${priority}:`, filteredExams.length);
+
+                // Agrupar por paciente y transformar para la tabla
+                const patients = transformExamsToPatients(filteredExams);
+                console.log(`👥 Pacientes agrupados:`, patients.length);
+
+                const paginated = paginateLocal(patients, page, pageSize);
 
                 setData(paginated.content);
                 setTotalElements(paginated.totalElements);
@@ -38,6 +58,7 @@ export const useLabData = (priority, filter, pageSize = 10) => {
 
             setCurrentPage(page);
         } catch (err) {
+            console.error('❌ Error cargando datos:', err);
             setError(err.message);
             setData([]);
         } finally {
@@ -65,12 +86,27 @@ export const useLabData = (priority, filter, pageSize = 10) => {
 
                 setExams(prev => ({ ...prev, [historia]: examsWithStatus }));
             } else {
-                const localExams = await LocalService.getExamsByHistoria(historia);
-                const filtered = localExams.filter(e =>
-                    e.estadoResultado === (filter === 'pendientes' ? 'PENDIENTE' : 'COMPLETADO')
+                const allLocalExams = await LocalService.getAllExams();
+                const statusMap = {
+                    'pendientes': 'PENDIENTE',
+                    'tomadas': 'COMPLETADO'
+                };
+
+                const filtered = allLocalExams.filter(e =>
+                    e.historia === historia && e.estadoResultado === statusMap[filter]
                 );
 
-                setExams(prev => ({ ...prev, [historia]: filtered }));
+                // Transformar formato para mostrar
+                const transformedExams = filtered.map(exam => ({
+                    id: exam.id,
+                    nombre: exam.nomServicio,
+                    status: filter === 'pendientes' ? 'pending' : 'completed',
+                    fechaPendiente: exam.fechaPendiente,
+                    fechaTomado: exam.fechaTomado,
+                    observaciones: exam.observaciones
+                }));
+
+                setExams(prev => ({ ...prev, [historia]: transformedExams }));
             }
         } catch (err) {
             console.error('Error loading patient exams:', err);
@@ -112,10 +148,50 @@ export const useLabData = (priority, filter, pageSize = 10) => {
         }
     }, [priority]);
 
-    const markAsCompleted = useCallback(async (examId, observations) => {
-        console.log('Mark as completed:', examId, observations);
-        // TODO: Implementar lógica local
-    }, []);
+    const markAsCompleted = useCallback(async (examId, observations = '') => {
+        try {
+            console.log(`🎯 Marcando examen ${examId} como completado...`);
+
+            await LocalService.updateExam(examId, {
+                estadoResultado: 'COMPLETADO',
+                fechaTomado: new Date().toISOString(),
+                observaciones: observations
+            });
+
+            console.log('✅ Examen marcado como completado');
+
+            // Recargar datos para refrescar la vista
+            await loadData(currentPage);
+
+            return true;
+        } catch (error) {
+            console.error('❌ Error marcando examen como completado:', error);
+            throw error;
+        }
+    }, [currentPage, loadData]);
+
+    // Revertir examen a pendiente (de COMPLETADO a PENDIENTE)
+    const revertToPending = useCallback(async (examId, observations = '') => {
+        try {
+            console.log(`🔄 Revirtiendo examen ${examId} a pendiente...`);
+
+            await LocalService.updateExam(examId, {
+                estadoResultado: 'PENDIENTE',
+                fechaTomado: null, // Limpiar fecha de tomado
+                observaciones: observations
+            });
+
+            console.log('✅ Examen revertido a pendiente');
+
+            // Recargar datos para refrescar la vista
+            await loadData(currentPage);
+
+            return true;
+        } catch (error) {
+            console.error('❌ Error revirtiendo examen a pendiente:', error);
+            throw error;
+        }
+    }, [currentPage, loadData]);
 
     // Navegación de páginas
     const goToPage = useCallback((page) => {
@@ -163,9 +239,56 @@ export const useLabData = (priority, filter, pageSize = 10) => {
         loadPatientExams,
         markAsPending,
         markAsCompleted,
+        revertToPending,
         refresh: () => loadData(currentPage)
     };
 };
+
+// Función para transformar exámenes de BD a formato de pacientes
+function transformExamsToPatients(exams) {
+    const patientsMap = new Map();
+
+    exams.forEach(exam => {
+        const historia = exam.historia;
+
+        if (!patientsMap.has(historia)) {
+            patientsMap.set(historia, {
+                id: historia,
+                historia: historia,
+                paciente: exam.nomPaciente,
+                edad: exam.edad,
+                ingreso: exam.numeroIngreso,
+                folio: exam.numeroFolio,
+                cama: exam.nomCama,
+                areaSolicitante: exam.areaSolicitante,
+                fechaSolicitud: exam.fechaSolicitud,
+                fechaPendiente: exam.fechaPendiente,
+                fechaTomado: exam.fechaTomado,
+                cantidadExamenes: 0,
+                examenes: []
+            });
+        }
+
+        const patient = patientsMap.get(historia);
+        patient.cantidadExamenes += 1;
+        patient.examenes.push({
+            nombre: exam.nomServicio,
+            observaciones: exam.observaciones,
+            fechaPendiente: exam.fechaPendiente,
+            fechaTomado: exam.fechaTomado
+        });
+
+        // Usar la fecha más reciente para el paciente
+        if (exam.fechaPendiente && (!patient.fechaPendiente || exam.fechaPendiente > patient.fechaPendiente)) {
+            patient.fechaPendiente = exam.fechaPendiente;
+        }
+        if (exam.fechaTomado && (!patient.fechaTomado || exam.fechaTomado > patient.fechaTomado)) {
+            patient.fechaTomado = exam.fechaTomado;
+        }
+    });
+
+    return Array.from(patientsMap.values());
+}
 
 // Funciones auxiliares
 function getExamStatus(examName, localExams) {

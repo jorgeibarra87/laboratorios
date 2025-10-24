@@ -1,6 +1,6 @@
 // components/LabTable.jsx
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useLabData } from '../../hook/useLabData';
 import ObservacionesModal from './ObservacionesModal.jsx';
 
@@ -8,7 +8,12 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
     const [expandedPatient, setExpandedPatient] = useState(null);
     // Estados para el modal
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedExam, setSelectedExam] = useState({ historia: '', name: '' });
+    const [modalConfig, setModalConfig] = useState({
+        title: '',
+        examName: '',
+        actionType: 'pending',
+        onConfirm: null
+    });
 
     const {
         data,
@@ -25,6 +30,8 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         hasPrevPage,
         loadPatientExams,
         markAsPending,
+        markAsCompleted,
+        revertToPending,
         refresh
     } = useLabData(priority, filter);
 
@@ -40,17 +47,43 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         }
     };
 
-    // Abrir modal para marcar como pendiente;
+    // Abrir modal para marcar como pendiente
     const handleMarkAsPending = (historia, examName) => {
-        setSelectedExam({ historia, name: examName });
+        setModalConfig({
+            title: 'Marcar como Pendiente',
+            examName: examName,
+            actionType: 'pending',
+            onConfirm: async (observations) => {
+                await markAsPending(historia, examName, observations);
+            }
+        });
         setModalOpen(true);
     };
 
-    //Confirmar marcar como pendiente
-    const confirmMarkAsPending = async (observations) => {
-        await markAsPending(selectedExam.historia, selectedExam.name, observations);
-        setModalOpen(false);
-        setSelectedExam({ historia: '', name: '' });
+    // Abrir modal para marcar como completado
+    const handleMarkAsCompleted = (examId, examName) => {
+        setModalConfig({
+            title: 'Marcar como Tomado',
+            examName: examName,
+            actionType: 'completed',
+            onConfirm: async (observations) => {
+                await markAsCompleted(examId, observations);
+            }
+        });
+        setModalOpen(true);
+    };
+
+    // Abrir modal para revertir a pendiente
+    const handleRevertToPending = (examId, examName) => {
+        setModalConfig({
+            title: 'Volver a Pendiente',
+            examName: examName,
+            actionType: 'revert',
+            onConfirm: async (observations) => {
+                await revertToPending(examId, observations);
+            }
+        });
+        setModalOpen(true);
     };
 
     // Función para obtener columnas dinámicas según el filtro
@@ -241,34 +274,50 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                                                 {exams[patient.historia].map((exam, index) => (
                                                                     <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
                                                                         <span className="font-medium">
-                                                                            {exam.nombre || exam.nomServicio || 'Examen sin nombre'}
+                                                                            {exam.nombre || exam.nomServicio}
                                                                         </span>
 
                                                                         <div className="flex items-center space-x-2">
-                                                                            {/* TEXTOS SEGÚN ESTADO */}
-                                                                            {exam.status === 'completed' && (
-                                                                                <span className="px-3 py-1 rounded text-xs bg-green-100 text-green-600 font-medium">
-                                                                                    ✅ Tomado
-                                                                                </span>
-                                                                            )}
-
-                                                                            {exam.status === 'pending' && (
-                                                                                <span className="px-3 py-1 rounded text-xs bg-yellow-100 text-yellow-600 font-medium">
-                                                                                    📌 Pendiente
-                                                                                </span>
-                                                                            )}
-
-                                                                            {/* BOTÓN PARA MARCAR COMO PENDIENTE */}
+                                                                            {/* PESTAÑA ACTUALES */}
                                                                             {filter === 'actuales' && exam.status === 'available' && (
                                                                                 <button
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
                                                                                         handleMarkAsPending(patient.historia, exam.nombre);
                                                                                     }}
-                                                                                    className="bg-yellow-200 hover:bg-yellow-300 text-yellow-600 px-3 py-1 rounded text-sm font-medium transition-colors"
-                                                                                    title="Marcar este examen como pendiente"
+                                                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm font-medium"
                                                                                 >
                                                                                     📌 Marcar como Pendiente
+                                                                                </button>
+                                                                            )}
+
+                                                                            {/* PESTAÑA PENDIENTES - Botón para marcar como tomado */}
+                                                                            {filter === 'pendientes' && (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        const examId = exam.id || exam.examId;
+                                                                                        handleMarkAsCompleted(examId, exam.nombre || exam.nomServicio);
+                                                                                    }}
+                                                                                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium flex items-center"
+                                                                                >
+                                                                                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                                                    Marcar como Tomado
+                                                                                </button>
+                                                                            )}
+
+                                                                            {/* PESTAÑA TOMADAS - Botón para revertir a pendiente */}
+                                                                            {filter === 'tomadas' && (
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        const examId = exam.id || exam.examId;
+                                                                                        handleRevertToPending(examId, exam.nombre || exam.nomServicio);
+                                                                                    }}
+                                                                                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm font-medium flex items-center"
+                                                                                >
+                                                                                    <ArrowLeft className="w-4 h-4 mr-1" />
+                                                                                    Volver a Pendiente
                                                                                 </button>
                                                                             )}
                                                                         </div>
@@ -294,13 +343,14 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                 )}
             </div>
 
-            {/* Modal de observaciones */}
+            {/* Modal unificado para todas las acciones */}
             <ObservacionesModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
-                title="Marcar como Pendiente"
-                examName={selectedExam.name}
-                onConfirm={confirmMarkAsPending}
+                title={modalConfig.title}
+                examName={modalConfig.examName}
+                actionType={modalConfig.actionType}
+                onConfirm={modalConfig.onConfirm}
             />
         </>
     );
