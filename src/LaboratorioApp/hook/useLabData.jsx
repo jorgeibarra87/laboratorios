@@ -14,6 +14,9 @@ export const useLabData = (priority, filter, pageSize = 10) => {
     const [totalElements, setTotalElements] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
+    // Estado para pacientes sin exámenes disponibles
+    const [patientsWithoutExams, setPatientsWithoutExams] = useState(new Set());
+
     // Cargar datos principales
     const loadData = useCallback(async (page = 0) => {
         setLoading(true);
@@ -21,16 +24,19 @@ export const useLabData = (priority, filter, pageSize = 10) => {
 
         try {
             if (filter === 'actuales') {
+                // Solo cargar lista de pacientes (sin exámenes)
                 const result = await ApiService.getPatients(priority, page, pageSize);
+
+                console.log(`📊 Pacientes cargados: ${result.content?.length || 0}`);
+
                 setData(result.content || []);
                 setTotalElements(result.totalElements || 0);
                 setTotalPages(result.totalPages || 0);
             } else {
-                // Para datos locales, usar LocalService
+                // Para pendientes y tomadas
                 console.log(`🔍 Cargando datos locales: ${filter} - ${priority}`);
                 const allLocalExams = await LocalService.getAllExams();
 
-                // Filtrar por estado y prioridad
                 const statusMap = {
                     'pendientes': 'PENDIENTE',
                     'tomadas': 'COMPLETADO'
@@ -39,13 +45,11 @@ export const useLabData = (priority, filter, pageSize = 10) => {
                 const filteredExams = allLocalExams.filter(exam => {
                     const matchesStatus = exam.estadoResultado === statusMap[filter];
                     const matchesPriority = exam.prioridad?.toLowerCase() === priority.toLowerCase();
-                    console.log(`Examen ${exam.nomServicio}: estado=${exam.estadoResultado}, prioridad=${exam.prioridad}, matches=${matchesStatus && matchesPriority}`);
                     return matchesStatus && matchesPriority;
                 });
 
                 console.log(`📊 Exámenes filtrados para ${filter}-${priority}:`, filteredExams.length);
 
-                // Agrupar por paciente y transformar para la tabla
                 const patients = transformExamsToPatients(filteredExams);
                 console.log(`👥 Pacientes agrupados:`, patients.length);
 
@@ -70,22 +74,37 @@ export const useLabData = (priority, filter, pageSize = 10) => {
     const loadPatientExams = useCallback(async (historia) => {
         try {
             if (filter === 'actuales') {
+                console.log(`🔍 Cargando exámenes para paciente ${historia}...`);
+
                 const [apiExams, localExams] = await Promise.all([
                     ApiService.getPatientExams(historia),
                     LocalService.getExamsByHistoria(historia)
                 ]);
+
+                console.log(`📋 Exámenes API: ${apiExams.length}, Local: ${localExams.length}`);
 
                 const examsWithStatus = apiExams.map(exam => {
                     const status = getExamStatus(exam.nombre, localExams);
                     return {
                         ...exam,
                         status,
-                        id: `${historia}-${exam.nombre}` // ID único para cada examen
+                        id: `${historia}-${exam.nombre}`
                     };
                 });
 
-                setExams(prev => ({ ...prev, [historia]: examsWithStatus }));
+                const availableExams = examsWithStatus.filter(exam => exam.status === 'available');
+
+                console.log(`✅ Exámenes disponibles: ${availableExams.length} de ${apiExams.length}`);
+
+                // Si no hay exámenes disponibles, marcar paciente para ocultarlo
+                if (availableExams.length === 0) {
+                    setPatientsWithoutExams(prev => new Set([...prev, historia]));
+                }
+
+                setExams(prev => ({ ...prev, [historia]: availableExams }));
+
             } else {
+                // Para pendientes y tomadas (mantener igual)
                 const allLocalExams = await LocalService.getAllExams();
                 const statusMap = {
                     'pendientes': 'PENDIENTE',
@@ -96,7 +115,6 @@ export const useLabData = (priority, filter, pageSize = 10) => {
                     e.historia === historia && e.estadoResultado === statusMap[filter]
                 );
 
-                // Transformar formato para mostrar
                 const transformedExams = filtered.map(exam => ({
                     id: exam.id,
                     nombre: exam.nomServicio,
@@ -240,6 +258,7 @@ export const useLabData = (priority, filter, pageSize = 10) => {
         markAsPending,
         markAsCompleted,
         revertToPending,
+        patientsWithoutExams,
         refresh: () => loadData(currentPage)
     };
 };

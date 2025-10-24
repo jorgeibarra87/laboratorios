@@ -32,8 +32,14 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         markAsPending,
         markAsCompleted,
         revertToPending,
+        patientsWithoutExams,
         refresh
     } = useLabData(priority, filter);
+
+    // Filtrar pacientes que no tienen exámenes disponibles
+    const filteredData = filter === 'actuales'
+        ? data.filter(patient => !patientsWithoutExams.has(patient.historia))
+        : data;
 
     const togglePatient = async (patientId) => {
         if (expandedPatient === patientId) {
@@ -179,7 +185,7 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         <>
             <div className="mb-8">
                 <div className={`${headerColor} text-white px-4 py-2 rounded-t-lg font-bold flex justify-between`}>
-                    <span>{title} ({totalElements} total)</span>
+                    <span>{title} ({filteredData.length} total)</span>
                     <button onClick={refresh} className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded flex items-center">
                         <RefreshCw className="w-4 h-4" />
                     </button>
@@ -189,7 +195,7 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                     <div className="bg-red-50 border border-red-200 rounded-b-lg p-4">
                         <p className="text-red-600">Error: {error}</p>
                     </div>
-                ) : data.length === 0 ? (
+                ) : filteredData.length === 0 ? (
                     <div className="bg-white shadow-lg rounded-b-lg p-8 text-center text-gray-500">
                         <p>No hay solicitudes {title.toLowerCase()}</p>
                     </div>
@@ -213,7 +219,7 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {data.map((patient) => (
+                                {filteredData.map((patient) => (
                                     <React.Fragment key={patient.id}>
                                         <tr className="hover:bg-gray-50 cursor-pointer border-l-4 border-blue-500" onClick={() => togglePatient(patient.id)}>
                                             <td className="px-4 py-3 font-medium">{patient.historia}</td>
@@ -266,10 +272,15 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                                 <td colSpan="100%" className="px-0 py-0 bg-gray-50">
                                                     <div className="px-8 py-4">
                                                         <h4 className="font-semibold text-gray-700 mb-3">
-                                                            Exámenes ({exams[patient.historia]?.length || 0})
+                                                            Exámenes Disponibles ({exams[patient.historia]?.length || 0})
                                                         </h4>
 
-                                                        {exams[patient.historia]?.length > 0 ? (
+                                                        {!exams[patient.historia] ? (
+                                                            <div className="text-center text-gray-500 py-4">
+                                                                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600" />
+                                                                <p>Cargando exámenes...</p>
+                                                            </div>
+                                                        ) : (
                                                             <div className="space-y-2">
                                                                 {exams[patient.historia].map((exam, index) => (
                                                                     <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
@@ -278,7 +289,7 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                                                         </span>
 
                                                                         <div className="flex items-center space-x-2">
-                                                                            {/* PESTAÑA ACTUALES */}
+                                                                            {/* Botones de acción según filtro */}
                                                                             {filter === 'actuales' && exam.status === 'available' && (
                                                                                 <button
                                                                                     onClick={(e) => {
@@ -291,7 +302,6 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                                                                 </button>
                                                                             )}
 
-                                                                            {/* PESTAÑA PENDIENTES - Botón para marcar como tomado */}
                                                                             {filter === 'pendientes' && (
                                                                                 <button
                                                                                     onClick={(e) => {
@@ -306,7 +316,6 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                                                                 </button>
                                                                             )}
 
-                                                                            {/* PESTAÑA TOMADAS - Botón para revertir a pendiente */}
                                                                             {filter === 'tomadas' && (
                                                                                 <button
                                                                                     onClick={(e) => {
@@ -323,10 +332,6 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
                                                                         </div>
                                                                     </div>
                                                                 ))}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="text-center text-gray-500 py-4">
-                                                                <p>Cargando exámenes...</p>
                                                             </div>
                                                         )}
                                                     </div>
