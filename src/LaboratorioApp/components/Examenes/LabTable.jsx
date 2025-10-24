@@ -36,10 +36,14 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         refresh
     } = useLabData(priority, filter);
 
-    // Filtrar pacientes que no tienen exámenes disponibles
-    const filteredData = filter === 'actuales'
-        ? data.filter(patient => !patientsWithoutExams.has(patient.historia))
-        : data;
+    // Usar useMemo para recalcular cuando cambia patientsWithoutExams
+    const filteredData = React.useMemo(() => {
+        if (filter !== 'actuales') return data;
+        return data.filter(patient => !patientsWithoutExams.has(patient.historia));
+    }, [data, patientsWithoutExams, filter]);
+
+    // Calcular paginación basada en datos filtrados
+    const displayCount = filter === 'actuales' ? filteredData.length : totalElements;
 
     const togglePatient = async (patientId) => {
         if (expandedPatient === patientId) {
@@ -131,7 +135,7 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
 
     // Componente de paginación
     const Pagination = () => {
-        if (totalElements === 0) return null;
+        if (displayCount === 0) return null;
 
         const pages = [];
         const maxVisible = 5;
@@ -145,7 +149,11 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         return (
             <div className="flex items-center justify-between px-4 py-3 bg-white border-t">
                 <span className="text-sm text-gray-700">
-                    Mostrando {Math.min((currentPage * 10) + 1, totalElements)} a {Math.min((currentPage + 1) * 10, totalElements)} de {totalElements}
+                    {filter === 'actuales' ? (
+                        `Mostrando ${filteredData.length} de ${displayCount}`
+                    ) : (
+                        `Mostrando ${Math.min((currentPage * 10) + 1, totalElements)} a ${Math.min((currentPage + 1) * 10, totalElements)} de ${totalElements}`
+                    )}
                 </span>
 
                 <div className="flex space-x-1">
@@ -185,7 +193,7 @@ const LabTable = ({ priority, title, headerColor, filter }) => {
         <>
             <div className="mb-8">
                 <div className={`${headerColor} text-white px-4 py-2 rounded-t-lg font-bold flex justify-between`}>
-                    <span>{title} ({filteredData.length} total)</span>
+                    <span>{title} ({displayCount} total)</span>
                     <button onClick={refresh} className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded flex items-center">
                         <RefreshCw className="w-4 h-4" />
                     </button>
