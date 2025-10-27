@@ -1,5 +1,6 @@
 // components/ObservacionesModal.jsx
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 const ObservacionesModal = ({
@@ -8,7 +9,7 @@ const ObservacionesModal = ({
     title,
     onConfirm,
     examName,
-    actionType = 'pending' // 'pending', 'completed', 'revert'
+    actionType = 'pending'
 }) => {
     const [observaciones, setObservaciones] = useState('');
     const [loading, setLoading] = useState(false);
@@ -61,14 +62,30 @@ const ObservacionesModal = ({
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+    return createPortal(
+        <div
+            className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-80 flex items-center justify-center"
+            style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                top: '62px',        // Altura del header
+                left: '320px',      // Ancho del sidebar  
+                right: '0',         // Hasta el borde derecho
+                bottom: '0',        // Hasta el borde inferior
+                zIndex: 999999
+            }}
+        >
+            <div
+                className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl border border-gray-300"
+                style={{
+                    zIndex: 1000000,
+                    position: 'relative'
+                }}
+            >
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">{title}</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
                     <button
                         onClick={handleClose}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
                         disabled={loading}
                     >
                         <X className="w-5 h-5" />
@@ -77,7 +94,7 @@ const ObservacionesModal = ({
 
                 <div className="mb-4">
                     <p className="text-sm text-gray-600 mb-2">
-                        Examen: <strong>{examName}</strong>
+                        Examen: <strong className="text-gray-800">{examName}</strong>
                     </p>
                 </div>
 
@@ -90,7 +107,7 @@ const ObservacionesModal = ({
                             value={observaciones}
                             onChange={(e) => setObservaciones(e.target.value)}
                             placeholder={currentConfig.placeholder}
-                            className="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             rows="4"
                             disabled={loading}
                         />
@@ -101,14 +118,14 @@ const ObservacionesModal = ({
                             type="button"
                             onClick={handleClose}
                             disabled={loading}
-                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className={`px-4 py-2 bg-${currentConfig.color}-600 text-white rounded-md hover:bg-${currentConfig.color}-700 disabled:opacity-50 flex items-center`}
+                            className={`px-4 py-2 bg-${currentConfig.color}-600 text-white rounded-md hover:bg-${currentConfig.color}-700 disabled:opacity-50 flex items-center transition-colors`}
                         >
                             {loading ? (
                                 <>
@@ -125,7 +142,8 @@ const ObservacionesModal = ({
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

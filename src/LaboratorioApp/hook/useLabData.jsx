@@ -24,14 +24,71 @@ export const useLabData = (priority, filter, pageSize = 10) => {
 
         try {
             if (filter === 'actuales') {
-                // Solo cargar lista de pacientes (sin exámenes)
+                // Obtener pacientes
                 const result = await ApiService.getPatients(priority, page, pageSize);
+                const allPatients = result.content || [];
 
-                console.log(`📊 Pacientes cargados: ${result.content?.length || 0}`);
+                // Obtener TODOS los exámenes locales para pre-filtrar
+                console.log('📋 Pre-filtrando pacientes con exámenes procesados...');
+                const allLocalExams = await LocalService.getAllExams();
 
-                setData(result.content || []);
-                setTotalElements(result.totalElements || 0);
-                setTotalPages(result.totalPages || 0);
+                // Para cada paciente, verificar si tiene exámenes disponibles
+                const patientsWithAvailableExams = [];
+                const patientsToHide = new Set();
+
+                for (const patient of allPatients) {
+                    // Obtener exámenes locales de este paciente
+                    const localExamsForPatient = allLocalExams.filter(
+                        e => e.historia === patient.historia
+                    );
+
+                    // Si no tiene exámenes locales, significa que todos están disponibles
+                    if (localExamsForPatient.length === 0) {
+                        patientsWithAvailableExams.push(patient);
+                        continue;
+                    }
+
+                    // Si tiene exámenes locales, verificar si tiene al menos uno disponible comparar
+                    try {
+                        const apiExams = await ApiService.getPatientExams(patient.historia);
+
+                        // Contar exámenes disponibles (no están en la base local)
+                        const availableExams = apiExams.filter(apiExam => {
+                            const isProcessed = localExamsForPatient.some(localExam =>
+                                localExam.nomServicio === apiExam.nombre &&
+                                (localExam.estadoResultado === 'PENDIENTE' || localExam.estadoResultado === 'COMPLETADO')
+                            );
+                            return !isProcessed; // Si no está procesado, está disponible
+                        });
+
+                        console.log(`🔍 ${patient.paciente}: ${availableExams.length}/${apiExams.length} disponibles`);
+
+                        if (availableExams.length > 0) {
+                            // Tiene al menos un examen disponible
+                            patientsWithAvailableExams.push({
+                                ...patient,
+                                cantidadExamenes: availableExams.length
+                            });
+                        } else {
+                            // No tiene exámenes disponibles, marcarlo para ocultar
+                            patientsToHide.add(patient.historia);
+                            console.log(`❌ Ocultando ${patient.paciente}: sin exámenes disponibles`);
+                        }
+                    } catch (examError) {
+                        console.error(`Error verificando exámenes para ${patient.historia}:`, examError);
+                        // En caso de error, mostrar el paciente (comportamiento seguro)
+                        patientsWithAvailableExams.push(patient);
+                    }
+                }
+
+                // Actualizar el Set de pacientes sin exámenes
+                setPatientsWithoutExams(patientsToHide);
+
+                console.log(`✅ Mostrando ${patientsWithAvailableExams.length} de ${allPatients.length} pacientes`);
+
+                setData(patientsWithAvailableExams);
+                setTotalElements(patientsWithAvailableExams.length);
+                setTotalPages(Math.ceil(patientsWithAvailableExams.length / pageSize));
             } else {
                 // Para pendientes y tomadas
                 console.log(`🔍 Cargando datos locales: ${filter} - ${priority}`);
